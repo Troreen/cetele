@@ -1,0 +1,76 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Stack
+
+Delegated baseline: strict TypeScript with React and Next.js App Router; PostgreSQL and Supabase for persistence and authentication where appropriate; Tailwind CSS; Vitest and React Testing Library for fast behavioral tests; Playwright for critical end-to-end flows. Deviate only when discovery identifies a concrete Çetele-specific advantage, and record any materially different infrastructure decision.
+
+## Users
+
+The primary user is a Turkish-speaking person recording mentor-assigned daily habits, usually on a phone and often in a brief daily moment. They need to understand what remains and record honest progress in seconds while feeling that the record belongs to them.
+
+The same account may also mentor any number of direct students. In that role, the user needs to scan the group, notice who needs attention, record that review happened, and separately record attributable follow-up. Senior mentors supervise the branch without replacing the direct mentor's ordinary responsibility.
+
+## Product Purpose
+
+Çetele is a daily habit accountability system for spiritual mentorship networks. It makes personal consistency visible over time through one history grid per habit, while giving each mentor the minimum hierarchical visibility needed to notice, review, and follow up responsibly.
+
+Success means a student records daily consistency in seconds, a direct mentor understands who needs attention without opening every profile, and a senior mentor can see whether delegated review and follow-up responsibilities are being fulfilled.
+
+## Positioning
+
+Çetele combines a personal-first daily habit record with delegated accountability that follows a one-direct-mentor tree upward: the student experiences self-accounting, while responsibility and carefully bounded visibility remain attributable throughout the hierarchy.
+
+## Operating Context
+
+- Daily completion is primarily mobile; historical review and mentorship views must remain first-class on desktop.
+- All end-user UI and assistive labels use natural Turkish.
+- A user may be a student and mentor at the same time; groups and branches derive from the mentorship tree rather than separate memberships.
+- A mentor invitation verifies the invitee's email; the invitee sets a password once and later signs in with email and password.
+- Direct mentors review their students daily and follow up outside the application when attention is needed.
+- One vetted spiritual quotation may quietly frame the daily view. Content and attribution are supplied and verified separately.
+
+## Capabilities and Constraints
+
+- V1 habits are daily and assigned by mentors; students do not create tracked habits.
+- Habits are binary by default and may optionally record a quantitative amount.
+- Students may edit today and yesterday only. Older dates are locked.
+- Each habit owns an independent Week and 6 Months history grid. The third longer range remains undecided.
+- Two consecutive missed days for the same habit create a student-level Needs Attention item on the third day. A valid retrospective correction may invalidate it; later improvement alone does not.
+- Daily Review and Follow-up are distinct mentor responsibilities with separate histories.
+- Visibility flows upward through the mentorship tree, never sideways. Peer students do not see individual records.
+- Student completion notes are visible to the student and mentors above. Mentor follow-up notes are visible to their writer and mentors above, not the student.
+- Direct mentors own ordinary accountability. Higher-mentor assignment or follow-up is exceptional and attributable.
+- Students control personal icon, accent color, and order; mentors control habit meaning, guide, completion definition, target, and assignment.
+- Shared habits are attributed, same-tree templates. Adoption creates an independent usable version; later source edits do not silently alter assignments.
+- Authorization must be enforced in server and data layers, including database policies where supported, not by hidden UI.
+- Open product decisions: third history range; student-facing anonymous aggregate metrics and minimum anonymity group size; mentor-transfer behavior; edits to locked completion notes; student visibility into Needs Attention; and mistaken-assignment correction.
+
+## Brand Commitments
+
+The product name is Çetele. Its voice is concise, human, calm, mature, reflective, modest, quietly disciplined, culturally Turkish, and openly spiritual without becoming decorative or preachy. The everyday student experience must feel like “my Çetele,” not a report prepared for surveillance.
+
+Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's simplicity and habit-specific grids, contribution-history readability, and the emotional character of a quiet personal journal are directional references, not identities to copy.
+
+## Evidence on Hand
+
+- Product behavior source: `docs/product/Cetele_V1_Product_Definition_v0.1.md`.
+- Visual and UX source: `docs/product/cetele_visual_identity_ux_direction_v1.md`.
+- No approved quotation, translation, spiritual citation, logo, testimonial, benchmark, customer claim, or production claim has been supplied. Future work must not fabricate them.
+
+## Product Principles
+
+1. Personal self-accounting stays in the foreground; mentorship remains a quiet, trustworthy safety net.
+2. Historical truth matters more than scores, streak pressure, or gamification.
+3. Direct responsibility stays local while visibility travels upward only as explicitly permitted.
+4. Daily completion is fast and calm; deeper history and mentorship detail remain available without crowding it.
+5. Turkish language, cultural fit, privacy, accessibility, and emotional safety are product behavior, not cosmetic polish.
+
+## Accessibility & Inclusion
+
+State meaning must never depend on color alone. Completed, missed, excused, retrospective, attention-needed, reviewed, and followed-up states must remain distinguishable at a glance and to assistive technology. Text must remain comfortably readable, mobile targets must be generous, keyboard and focus behavior must be complete, motion must respect reduced-motion preferences, and missed habits must not be presented as visual punishment. No specific WCAG conformance level has yet been mandated.

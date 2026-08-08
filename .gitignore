@@ -1,0 +1,42 @@
+# Dependencies and package-manager state
+node_modules/
+.pnp.*
+
+# Next.js and build output
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# Tests and browser artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Hosting providers
+.vercel/
+
+# Logs and editor/OS files
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Temporary planning and prototypes
+.scratch/
+tmp/
+temp/
