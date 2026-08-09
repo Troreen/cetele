@@ -13,7 +13,7 @@ This file is the authoritative delivery sequence. Product behavior remains autho
 
 ### 1. Checkpoint the verified V1
 
-**Status:** in progress
+**Status:** complete — checkpoint `bba37e7` pushed to `origin/codex/complete-v1`
 
 1. Re-run `npm.cmd run verify` and `npm.cmd run test:e2e` on the exact tree to be checkpointed.
 2. Review the complete V1 diff, preserving unrelated user work and excluding secrets or local environment files.
@@ -21,9 +21,11 @@ This file is the authoritative delivery sequence. Product behavior remains autho
 
 **Stopping condition:** both local commands pass on the checkpointed tree; documentation describes the same scope and verification boundary; the focused milestone commit is pushed and its evidence is linked.
 
+**Evidence:** `npm.cmd run verify` passed with 18 Vitest tests and a production build; `npm.cmd run test:e2e` passed 9 Playwright journeys. The checkpoint was independently reviewed before publication, and the discovered sign-out, assignment-scoped Excused Day, and mistaken-assignment correction gaps were repaired test-first before the full gates were rerun.
+
 ### 2. Pass the hosted Supabase and RLS gate
 
-**Status:** pending Milestone 1
+**Status:** ready; blocked only on the disposable hosted project and credentials
 
 Follow the full [V1 verification contract](docs/verification/V1_VERIFICATION.md) in a disposable hosted project, using [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql) and disposable subject, Direct Mentor, Mentor Above, peer, and outsider identities.
 
