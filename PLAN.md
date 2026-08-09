@@ -4,7 +4,7 @@ This file is the authoritative delivery sequence. Product behavior remains autho
 
 ## Current truth — 2026-08-09
 
-- **V1 application scope is implemented and locally verified.** On 2026-08-09, `npm.cmd run verify` passed ESLint, strict TypeScript, 18 Vitest tests, and the production build. `npm.cmd run test:e2e` passed all 9 Playwright journeys.
+- **V1 application scope is implemented and locally verified.** On 2026-08-09, the current candidate's `npm.cmd run verify` passed ESLint, strict TypeScript, 28 Vitest tests, and the production build. `npm.cmd run test:e2e` passed all 9 Playwright journeys.
 - **Production readiness is gated.** The Supabase schema, RPCs, and RLS policies exist, but the migration has not been executed against a connected hosted project and the multi-identity allow/deny matrix has not been exercised.
 - The local adapter proves application behavior and browser persistence only. Production authentication, PostgreSQL persistence, email delivery, and RLS remain **hosted-unverified**.
 - Keep `NEXT_PUBLIC_CETELE_DATA_ADAPTER=local` until Milestone 2 stops successfully.
@@ -28,6 +28,8 @@ This file is the authoritative delivery sequence. Product behavior remains autho
 **Status:** ready; blocked only on the disposable hosted project and credentials
 
 Follow the full [V1 verification contract](docs/verification/V1_VERIFICATION.md) in a disposable hosted project, using [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql) and disposable subject, Direct Mentor, Mentor Above, peer, and outsider identities.
+
+**Local preparation complete:** `npm.cmd run verify:hosted` now provides a fail-closed, redaction-safe 32-check initial identity matrix. The migration has explicit least-privilege grants, private hierarchy helpers, RLS identity-call hardening, missing FK/filter indexes, and static migration-contract tests. Hosted mutation failures are handled and surfaced to the user. None of this substitutes for executing the migration and matrix against PostgreSQL.
 
 **Stopping condition:** every required allow and deny case passes; invitation/password setup, reload persistence, date locks, attention invalidation and reopening, note privacy, Shared Habit visibility, and attributable interventions are verified; the project reference and sanitized command output are recorded in the verification contract and [issue #3](https://github.com/Troreen/cetele/issues/3). Any defect discovered is fixed and both local gates are rerun before this milestone stops.
 

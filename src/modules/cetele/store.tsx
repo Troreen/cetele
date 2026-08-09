@@ -8,6 +8,11 @@ import { persistAction } from "./persist-action";
 import { previousDomainDate } from "./policy";
 
 const STORAGE_KEY = "cetele-v1-state";
+const PERSISTENCE_ERROR = "Değişiklik kaydedilemedi. Lütfen tekrar deneyin.";
+
+export const browserNavigation = {
+  reload: () => window.location.reload(),
+};
 
 export type Action =
   | { type: "hydrate"; state: CeteleState }
@@ -118,9 +123,10 @@ export function reduceCeteleState(state: CeteleState, action: Action): CeteleSta
 type StoreValue = { state: CeteleState; dispatch: React.Dispatch<Action>; reset: () => void; adapter: DataAdapter };
 const StoreContext = createContext<StoreValue | null>(null);
 
-export function CeteleProvider({ children, initialState = fixtureState, adapter = "local" }: { children: React.ReactNode; initialState?: CeteleState; adapter?: DataAdapter }) {
+export function CeteleProvider({ children, initialState = fixtureState, adapter = "local", persist = persistAction }: { children: React.ReactNode; initialState?: CeteleState; adapter?: DataAdapter; persist?: typeof persistAction }) {
   const [state, rawDispatch] = useReducer(reduceCeteleState, initialState);
   const [hydrated, setHydrated] = useState(false);
+  const [persistenceError, setPersistenceError] = useState("");
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (adapter === "local" && raw) rawDispatch({ type: "hydrate", state: JSON.parse(raw) as CeteleState });
@@ -134,10 +140,18 @@ export function CeteleProvider({ children, initialState = fixtureState, adapter 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(reduceCeteleState(state, action)));
       rawDispatch(action);
     }
-    else void persistAction(action, state).then(() => window.location.reload());
-  }, [adapter, state]);
+    else {
+      setPersistenceError("");
+      return persist(action, state)
+        .then(() => browserNavigation.reload())
+        .catch(() => setPersistenceError(PERSISTENCE_ERROR));
+    }
+  }, [adapter, persist, state]);
   const value = useMemo(() => ({ state, dispatch, adapter, reset: () => rawDispatch({ type: "hydrate", state: fixtureState }) }), [adapter, dispatch, state]);
-  return <StoreContext value={value}>{children}</StoreContext>;
+  return <StoreContext value={value}>
+    {persistenceError ? <p className="form-error" role="alert">{persistenceError}</p> : null}
+    {children}
+  </StoreContext>;
 }
 
 export function useCetele() {

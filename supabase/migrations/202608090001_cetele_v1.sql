@@ -2,6 +2,8 @@
 -- Hosted execution and RLS verification are intentionally not claimed by this repository alone.
 
 create extension if not exists pgcrypto;
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
 
 create type public.habit_mode as enum ('binary', 'quantitative');
 create type public.definition_visibility as enum ('private', 'shared');
@@ -31,6 +33,8 @@ create table public.mentorship_invitations (
 );
 create unique index one_pending_invitation on public.mentorship_invitations(mentor_id, lower(invitee_email))
 where accepted_at is null and cancelled_at is null;
+create index invitations_by_mentor on public.mentorship_invitations(mentor_id);
+create index invitations_by_invited_user on public.mentorship_invitations(invited_user_id);
 
 create table public.mentorship_relationships (
   id uuid primary key default gen_random_uuid(),
@@ -68,6 +72,8 @@ create table public.habit_definitions (
 );
 create index definitions_by_author on public.habit_definitions(author_id);
 create index shared_definitions on public.habit_definitions(visibility, author_id) where visibility = 'shared';
+create index definitions_by_source on public.habit_definitions(source_definition_id);
+create index definitions_by_source_creator on public.habit_definitions(source_creator_id);
 
 create table public.habit_assignments (
   id uuid primary key default gen_random_uuid(),
@@ -83,6 +89,8 @@ create table public.habit_assignments (
 );
 create index assignments_by_student on public.habit_assignments(student_id, status);
 create index assignments_by_definition on public.habit_assignments(definition_id);
+create index assignments_by_assigner on public.habit_assignments(assigned_by);
+create index assignments_by_intervention_mentor on public.habit_assignments(intervention_for_mentor_id);
 create unique index one_active_definition_assignment on public.habit_assignments(definition_id, student_id) where status = 'active';
 
 create table public.assignment_preferences (
@@ -120,6 +128,8 @@ create table public.excused_days (
 );
 create unique index unique_assignment_excuse on public.excused_days(student_id, assignment_id, excuse_date) nulls not distinct;
 create index excuses_by_student_date on public.excused_days(student_id, excuse_date desc);
+create index excuses_by_assignment on public.excused_days(assignment_id);
+create index excuses_by_grantor on public.excused_days(granted_by);
 
 create table public.attention_items (
   id uuid primary key default gen_random_uuid(),
@@ -135,8 +145,10 @@ create table public.attention_items (
   check (second_missed_date = first_missed_date + 1)
 );
 create unique index one_attention_per_student_day on public.attention_items(student_id, second_missed_date);
+create index attention_open_by_student on public.attention_items(student_id, second_missed_date) where state = 'open';
 create index attention_by_responsible_state on public.attention_items(responsible_mentor_id, state, created_at desc);
 create index attention_by_student on public.attention_items(student_id, created_at desc);
+create index attention_by_trigger_assignment on public.attention_items(trigger_assignment_id);
 
 create table public.followups (
   id uuid primary key default gen_random_uuid(),
@@ -148,6 +160,7 @@ create table public.followups (
 );
 create index followups_by_attention on public.followups(attention_id, created_at desc);
 create index followups_by_actor on public.followups(actor_id, created_at desc);
+create index followups_by_responsible_mentor on public.followups(responsible_mentor_id);
 
 create table public.daily_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -204,7 +217,7 @@ $$;
 create trigger auth_user_profile after insert on auth.users for each row execute function public.handle_new_auth_user();
 revoke all on function public.handle_new_auth_user() from public;
 
-create or replace function public.is_direct_mentor(viewer uuid, subject uuid)
+create or replace function private.is_direct_mentor(viewer uuid, subject uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select exists (
     select 1 from public.mentorship_relationships r
@@ -212,7 +225,7 @@ returns boolean language sql stable security definer set search_path = '' as $$
   );
 $$;
 
-create or replace function public.is_mentor_above(viewer uuid, subject uuid)
+create or replace function private.is_mentor_above(viewer uuid, subject uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   with recursive ancestry(mentor_id, student_id, path) as (
     select r.mentor_id, r.student_id, array[r.student_id, r.mentor_id]
@@ -227,28 +240,41 @@ returns boolean language sql stable security definer set search_path = '' as $$
   select exists (select 1 from ancestry where mentor_id = viewer);
 $$;
 
-create or replace function public.same_tree(left_user uuid, right_user uuid)
+create or replace function private.same_tree(left_user uuid, right_user uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
   select left_user = right_user
-    or public.is_mentor_above(left_user, right_user)
-    or public.is_mentor_above(right_user, left_user)
+    or private.is_mentor_above(left_user, right_user)
+    or private.is_mentor_above(right_user, left_user)
     or exists (
       select 1 from public.profiles p
-      where public.is_mentor_above(p.id, left_user) and public.is_mentor_above(p.id, right_user)
+      where private.is_mentor_above(p.id, left_user) and private.is_mentor_above(p.id, right_user)
     );
 $$;
 
-revoke all on function public.is_direct_mentor(uuid, uuid) from public;
-revoke all on function public.is_mentor_above(uuid, uuid) from public;
-revoke all on function public.same_tree(uuid, uuid) from public;
-grant execute on function public.is_direct_mentor(uuid, uuid) to authenticated;
-grant execute on function public.is_mentor_above(uuid, uuid) to authenticated;
-grant execute on function public.same_tree(uuid, uuid) to authenticated;
+revoke all on function private.is_direct_mentor(uuid, uuid) from public;
+revoke all on function private.is_mentor_above(uuid, uuid) from public;
+revoke all on function private.same_tree(uuid, uuid) from public;
+
+create or replace function private.is_current_user_mentor_above(subject uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.is_mentor_above((select auth.uid()), subject);
+$$;
+
+create or replace function private.is_in_current_user_tree(other_user uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.same_tree((select auth.uid()), other_user);
+$$;
+
+revoke all on function private.is_current_user_mentor_above(uuid) from public;
+revoke all on function private.is_in_current_user_tree(uuid) from public;
+grant usage on schema private to authenticated;
+grant execute on function private.is_current_user_mentor_above(uuid) to authenticated;
+grant execute on function private.is_in_current_user_tree(uuid) to authenticated;
 
 create or replace function public.reject_mentorship_cycle()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if public.is_mentor_above(new.student_id, new.mentor_id) then
+  if private.is_mentor_above(new.student_id, new.mentor_id) then
     raise exception 'Mentorship relationship would create a cycle';
   end if;
   return new;
@@ -324,7 +350,7 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare v_subject uuid; v_responsible uuid;
 begin
   select student_id, responsible_mentor_id into v_subject, v_responsible from public.attention_items where id = p_attention_id and state = 'open' for update;
-  if v_subject is null or not (auth.uid() = v_responsible or public.is_mentor_above(auth.uid(), v_subject)) then raise exception 'Not authorized for follow-up'; end if;
+  if v_subject is null or not (auth.uid() = v_responsible or private.is_mentor_above(auth.uid(), v_subject)) then raise exception 'Not authorized for follow-up'; end if;
   insert into public.followups(attention_id, actor_id, responsible_mentor_id, private_note) values (p_attention_id, auth.uid(), v_responsible, coalesce(p_note, ''));
   update public.attention_items set state = 'followed_up' where id = p_attention_id;
   insert into public.audit_events(actor_id, subject_id, event_type, entity_type, entity_id, details)
@@ -361,7 +387,7 @@ returns public.assignment_status language plpgsql security definer set search_pa
 declare v_student uuid; v_status public.assignment_status;
 begin
   select student_id into v_student from public.habit_assignments where id = p_assignment_id and status = 'active' for update;
-  if v_student is null or not public.is_direct_mentor(auth.uid(), v_student) then raise exception 'Direct mentor required for assignment correction'; end if;
+  if v_student is null or not private.is_direct_mentor(auth.uid(), v_student) then raise exception 'Direct mentor required for assignment correction'; end if;
   select case when exists (select 1 from public.completions where assignment_id = p_assignment_id) then 'ended'::public.assignment_status else 'void'::public.assignment_status end into v_status;
   update public.habit_assignments set status = v_status, ended_at = now(), correction_reason = p_reason where id = p_assignment_id;
   insert into public.audit_events(actor_id, subject_id, event_type, entity_type, entity_id, details)
@@ -383,14 +409,14 @@ begin
   from public.mentorship_relationships r
   where r.student_id = p_student_id and r.status = 'active';
   if v_responsible_mentor is null
-    or not (auth.uid() = v_responsible_mentor or public.is_mentor_above(auth.uid(), p_student_id)) then
+    or not (auth.uid() = v_responsible_mentor or private.is_mentor_above(auth.uid(), p_student_id)) then
     raise exception 'Not authorized to assign this student';
   end if;
 
   select d.mode, d.default_target into v_mode, v_default_target
   from public.habit_definitions d
   where d.id = p_definition_id
-    and (d.author_id = auth.uid() or (d.visibility = 'shared' and public.same_tree(auth.uid(), d.author_id)));
+    and (d.author_id = auth.uid() or (d.visibility = 'shared' and private.same_tree(auth.uid(), d.author_id)));
   if v_mode is null then raise exception 'Habit definition is not available'; end if;
 
   v_target := case when v_mode = 'binary' then null else coalesce(p_target, v_default_target) end;
@@ -518,7 +544,7 @@ begin
     limit 1
   ) candidate
   where r.status = 'active'
-    and (r.mentor_id = auth.uid() or public.is_mentor_above(auth.uid(), r.student_id))
+    and (r.mentor_id = auth.uid() or private.is_mentor_above(auth.uid(), r.student_id))
     and not exists (select 1 from public.attention_items open_item where open_item.student_id = r.student_id and open_item.state = 'open')
   on conflict (student_id, second_missed_date) do update
   set trigger_assignment_id = excluded.trigger_assignment_id,
@@ -578,38 +604,74 @@ alter table public.daily_reviews enable row level security;
 alter table public.reminder_preferences enable row level security;
 alter table public.audit_events enable row level security;
 
-create policy profiles_read_upward on public.profiles for select to authenticated using (id = auth.uid() or public.is_mentor_above(auth.uid(), id));
-create policy profiles_update_self on public.profiles for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
-create policy invitations_read_parties on public.mentorship_invitations for select to authenticated using (mentor_id = auth.uid() or invited_user_id = auth.uid());
-create policy relationships_read_upward on public.mentorship_relationships for select to authenticated using (student_id = auth.uid() or mentor_id = auth.uid() or public.is_mentor_above(auth.uid(), student_id));
+revoke all privileges on table
+  public.profiles,
+  public.mentorship_invitations,
+  public.mentorship_relationships,
+  public.habit_definitions,
+  public.habit_assignments,
+  public.assignment_preferences,
+  public.completions,
+  public.excused_days,
+  public.attention_items,
+  public.followups,
+  public.daily_reviews,
+  public.reminder_preferences,
+  public.audit_events
+from public, anon, authenticated;
+revoke all privileges on sequence public.audit_events_id_seq from public, anon, authenticated;
+
+grant usage on schema public to authenticated;
+grant select on table
+  public.profiles,
+  public.mentorship_invitations,
+  public.mentorship_relationships,
+  public.habit_definitions,
+  public.habit_assignments,
+  public.assignment_preferences,
+  public.completions,
+  public.excused_days,
+  public.attention_items,
+  public.followups,
+  public.daily_reviews,
+  public.reminder_preferences
+to authenticated;
+grant insert on table public.habit_definitions to authenticated;
+grant insert, update on table public.assignment_preferences, public.reminder_preferences to authenticated;
+grant update on table public.profiles to authenticated;
+
+create policy profiles_read_upward on public.profiles for select to authenticated using (id = (select auth.uid()) or private.is_current_user_mentor_above(id));
+create policy profiles_update_self on public.profiles for update to authenticated using (id = (select auth.uid())) with check (id = (select auth.uid()));
+create policy invitations_read_parties on public.mentorship_invitations for select to authenticated using (mentor_id = (select auth.uid()) or invited_user_id = (select auth.uid()));
+create policy relationships_read_upward on public.mentorship_relationships for select to authenticated using (student_id = (select auth.uid()) or mentor_id = (select auth.uid()) or private.is_current_user_mentor_above(student_id));
 create policy definitions_read on public.habit_definitions for select to authenticated using (
-  author_id = auth.uid()
-  or (visibility = 'shared' and public.same_tree(auth.uid(), author_id))
+  author_id = (select auth.uid())
+  or (visibility = 'shared' and private.is_in_current_user_tree(author_id))
   or exists (
     select 1 from public.habit_assignments a
     where a.definition_id = habit_definitions.id
-      and (a.student_id = auth.uid() or public.is_mentor_above(auth.uid(), a.student_id))
+      and (a.student_id = (select auth.uid()) or private.is_current_user_mentor_above(a.student_id))
   )
 );
 create policy definitions_insert_mentors on public.habit_definitions for insert to authenticated with check (
-  author_id = auth.uid() and exists (select 1 from public.mentorship_relationships r where r.mentor_id = auth.uid() and r.status = 'active')
+  author_id = (select auth.uid()) and exists (select 1 from public.mentorship_relationships r where r.mentor_id = (select auth.uid()) and r.status = 'active')
 );
 create policy definitions_update_mentors on public.habit_definitions for update to authenticated
-using (author_id = auth.uid())
-with check (author_id = auth.uid() and exists (select 1 from public.mentorship_relationships r where r.mentor_id = auth.uid() and r.status = 'active'));
-create policy assignments_read_upward on public.habit_assignments for select to authenticated using (student_id = auth.uid() or public.is_mentor_above(auth.uid(), student_id));
+using (author_id = (select auth.uid()))
+with check (author_id = (select auth.uid()) and exists (select 1 from public.mentorship_relationships r where r.mentor_id = (select auth.uid()) and r.status = 'active'));
+create policy assignments_read_upward on public.habit_assignments for select to authenticated using (student_id = (select auth.uid()) or private.is_current_user_mentor_above(student_id));
 create policy preferences_subject_all on public.assignment_preferences for all to authenticated
-using (student_id = auth.uid() and exists (select 1 from public.habit_assignments a where a.id = assignment_id and a.student_id = auth.uid()))
-with check (student_id = auth.uid() and exists (select 1 from public.habit_assignments a where a.id = assignment_id and a.student_id = auth.uid()));
-create policy completions_read_upward on public.completions for select to authenticated using (student_id = auth.uid() or public.is_mentor_above(auth.uid(), student_id));
-create policy excuses_read_upward on public.excused_days for select to authenticated using (student_id = auth.uid() or public.is_mentor_above(auth.uid(), student_id));
-create policy attention_mentor_only on public.attention_items for select to authenticated using (public.is_mentor_above(auth.uid(), student_id));
-create policy followups_writer_and_above on public.followups for select to authenticated using (actor_id = auth.uid() or public.is_mentor_above(auth.uid(), actor_id));
-create policy reviews_writer_and_above on public.daily_reviews for select to authenticated using (mentor_id = auth.uid() or public.is_mentor_above(auth.uid(), mentor_id));
-create policy reviews_write_self on public.daily_reviews for insert to authenticated with check (mentor_id = auth.uid() and exists (select 1 from public.mentorship_relationships r where r.mentor_id = auth.uid() and r.status = 'active'));
-create policy reviews_update_self on public.daily_reviews for update to authenticated using (mentor_id = auth.uid()) with check (mentor_id = auth.uid());
-create policy reminders_self on public.reminder_preferences for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy audit_actor_and_above on public.audit_events for select to authenticated using (actor_id = auth.uid() or (subject_id is not null and public.is_mentor_above(auth.uid(), subject_id)));
+using (student_id = (select auth.uid()) and exists (select 1 from public.habit_assignments a where a.id = assignment_id and a.student_id = (select auth.uid())))
+with check (student_id = (select auth.uid()) and exists (select 1 from public.habit_assignments a where a.id = assignment_id and a.student_id = (select auth.uid())));
+create policy completions_read_upward on public.completions for select to authenticated using (student_id = (select auth.uid()) or private.is_current_user_mentor_above(student_id));
+create policy excuses_read_upward on public.excused_days for select to authenticated using (student_id = (select auth.uid()) or private.is_current_user_mentor_above(student_id));
+create policy attention_mentor_only on public.attention_items for select to authenticated using (private.is_current_user_mentor_above(student_id));
+create policy followups_writer_and_above on public.followups for select to authenticated using (actor_id = (select auth.uid()) or private.is_current_user_mentor_above(actor_id));
+create policy reviews_writer_and_above on public.daily_reviews for select to authenticated using (mentor_id = (select auth.uid()) or private.is_current_user_mentor_above(mentor_id));
+create policy reviews_write_self on public.daily_reviews for insert to authenticated with check (mentor_id = (select auth.uid()) and exists (select 1 from public.mentorship_relationships r where r.mentor_id = (select auth.uid()) and r.status = 'active'));
+create policy reviews_update_self on public.daily_reviews for update to authenticated using (mentor_id = (select auth.uid())) with check (mentor_id = (select auth.uid()));
+create policy reminders_self on public.reminder_preferences for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy audit_actor_and_above on public.audit_events for select to authenticated using (actor_id = (select auth.uid()) or (subject_id is not null and private.is_current_user_mentor_above(subject_id)));
 
 -- No student-facing attention policy or peer aggregate view exists in conservative V1.
 -- Relationship transfer is also deliberately absent: second active mentors are rejected.
