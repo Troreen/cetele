@@ -31,7 +31,7 @@ Success means a student records daily consistency in seconds, a direct mentor un
 - Daily completion is primarily mobile; historical review and mentorship views must remain first-class on desktop.
 - All end-user UI and assistive labels use natural Turkish.
 - A user may be a student and mentor at the same time; groups and branches derive from the mentorship tree rather than separate memberships.
-- A mentor invitation verifies the invitee's email; the invitee sets a password once and later signs in with email and password.
+- A mentor creates a revocable, expiring, single-use invitation link and delivers it privately outside Çetele. The invitee chooses their own email and password when claiming the link; mentors and admins never create or share student passwords.
 - Direct mentors review their students daily and follow up outside the application when attention is needed.
 - One vetted spiritual quotation may quietly frame the daily view. Content and attribution are supplied and verified separately.
 

@@ -23,6 +23,8 @@ export type Assignment = {
   definitionId: string;
   studentId: string;
   assignedBy: string;
+  startedOn: string;
+  endedOn: string | null;
   target: number | null;
   accent: string;
   icon: "book" | "heart" | "walk" | "focus";
@@ -44,6 +46,7 @@ export type Person = {
   initials: string;
   mentorId: string | null;
   invitation: "active" | "pending";
+  invitationExpiresAt?: string;
   groupName?: string;
 };
 

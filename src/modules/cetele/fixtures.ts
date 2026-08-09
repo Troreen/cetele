@@ -21,11 +21,11 @@ export const fixtureState: CeteleState = {
     { id: "walk", authorId: "senior", name: "Açık hava yürüyüşü", description: "Bedeni hareket ettir", guide: "Temponu koruyarak açık havada yürü.", why: "Beden ve zihin dengesini desteklemek için.", completionDefinition: "En az on dakika yürüyüş.", tips: "Kısa bir rota önceden belirle.", mode: "quantitative", defaultTarget: 20, visibility: "shared", sourceAuthor: "Selim Kaya" },
   ],
   assignments: [
-    { id: "mentor-reading", definitionId: "reading", studentId: "mentor", assignedBy: "senior", target: 10, accent: "#55a7ff", icon: "book", order: 0, status: "active" },
-    { id: "mentor-focus", definitionId: "focus", studentId: "mentor", assignedBy: "senior", target: null, accent: "#f164ef", icon: "focus", order: 1, status: "active" },
+    { id: "mentor-reading", definitionId: "reading", studentId: "mentor", assignedBy: "senior", startedOn: "2026-08-03", endedOn: null, target: 10, accent: "#55a7ff", icon: "book", order: 0, status: "active" },
+    { id: "mentor-focus", definitionId: "focus", studentId: "mentor", assignedBy: "senior", startedOn: "2026-08-03", endedOn: null, target: null, accent: "#f164ef", icon: "focus", order: 1, status: "active" },
     ...["ayse", "zeynep", "eren", "junior", "deniz"].flatMap((studentId, index) => [
-      { id: `${studentId}-reading`, definitionId: "reading", studentId, assignedBy: studentId === "deniz" ? "junior" : "mentor", target: 10, accent: "#55a7ff", icon: "book" as const, order: 0, status: "active" as const },
-      { id: `${studentId}-focus`, definitionId: "focus", studentId, assignedBy: studentId === "deniz" ? "junior" : "mentor", target: null, accent: index % 2 ? "#3ed68b" : "#f164ef", icon: "focus" as const, order: 1, status: "active" as const },
+      { id: `${studentId}-reading`, definitionId: "reading", studentId, assignedBy: studentId === "deniz" ? "junior" : "mentor", startedOn: "2026-08-03", endedOn: null, target: 10, accent: "#55a7ff", icon: "book" as const, order: 0, status: "active" as const },
+      { id: `${studentId}-focus`, definitionId: "focus", studentId, assignedBy: studentId === "deniz" ? "junior" : "mentor", startedOn: "2026-08-03", endedOn: null, target: null, accent: index % 2 ? "#3ed68b" : "#f164ef", icon: "focus" as const, order: 1, status: "active" as const },
     ]),
   ],
   completions: [

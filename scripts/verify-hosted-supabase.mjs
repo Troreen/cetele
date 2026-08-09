@@ -59,6 +59,15 @@ export function redact(value, secrets = []) {
     .replace(/(bearer\s+)[A-Za-z0-9._~-]+/gi, "$1[REDACTED_TOKEN]");
 }
 
+export function errorSummary(error) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const { code, message, details, hint } = error;
+    return JSON.stringify({ code, message, details, hint });
+  }
+  return String(error ?? "Unknown hosted verification error");
+}
+
 export function plannedMatrix() {
   return [
     ["profile.self", "subject", "allow"],
@@ -92,7 +101,95 @@ export function plannedMatrix() {
     ["completion.subject", "outsider", "deny"],
     ["rpc.assign-subject", "peer", "deny"],
     ["rpc.assign-subject", "outsider", "deny"],
+    ["rpc.assign-subject", "direct", "allow"],
+    ["rpc.remove-completion.active-assignment", "subject", "allow"],
+    ["rpc.end-assignment", "direct", "allow"],
+    ["rpc.remove-completion.ended-assignment", "subject", "deny"],
     ["rpc.reconcile-attention", "direct", "allow"],
+    ["attention.subject", "subject", "deny"],
+    ["attention.subject", "direct", "allow"],
+    ["attention.subject", "senior", "allow"],
+    ["attention.subject", "peer", "deny"],
+    ["attention.subject", "outsider", "deny"],
+    ["attention.completion-invalidation", "subject", "allow"],
+    ["attention.removal-reopening", "subject", "allow"],
+    ["rpc.record-follow-up", "subject", "deny"],
+    ["rpc.record-follow-up", "peer", "deny"],
+    ["rpc.record-follow-up", "outsider", "deny"],
+    ["preference.self", "subject", "allow"],
+    ["preference.subject", "direct", "deny"],
+    ["preference.subject", "senior", "deny"],
+    ["preference.subject", "peer", "deny"],
+    ["preference.subject", "outsider", "deny"],
+    ["preference.subject-write", "direct", "deny"],
+    ["profile.theme-self-write", "subject", "allow"],
+    ["profile.theme-cross-write", "outsider", "deny"],
+    ["reminder.self-write", "subject", "allow"],
+    ["reminder.cross-write", "direct", "deny"],
+    ["rpc.record-daily-review", "direct", "allow"],
+    ["rpc.record-daily-review", "senior", "allow"],
+    ["rpc.record-daily-review", "subject", "deny"],
+    ["rpc.record-daily-review", "peer", "deny"],
+    ["rpc.record-daily-review", "outsider", "deny"],
+    ["daily-review.direct", "direct", "allow"],
+    ["daily-review.direct", "senior", "allow"],
+    ["daily-review.direct", "subject", "deny"],
+    ["daily-review.direct", "peer", "deny"],
+    ["daily-review.direct", "outsider", "deny"],
+    ["rpc.grant-assignment-excuse", "direct", "allow"],
+    ["rpc.grant-assignment-excuse", "senior", "deny"],
+    ["rpc.grant-assignment-excuse", "subject", "deny"],
+    ["rpc.grant-assignment-excuse", "peer", "deny"],
+    ["rpc.grant-assignment-excuse", "outsider", "deny"],
+    ["rpc.grant-day-excuse", "direct", "allow"],
+    ["excuse.subject", "subject", "allow"],
+    ["excuse.subject", "direct", "allow"],
+    ["excuse.subject", "senior", "allow"],
+    ["excuse.subject", "peer", "deny"],
+    ["excuse.subject", "outsider", "deny"],
+    ["rpc.record-quantitative", "subject", "allow"],
+    ["rpc.record-quantitative.yesterday", "subject", "allow"],
+    ["rpc.record-quantitative.missing-amount", "subject", "deny"],
+    ["completion.quantitative-today", "subject", "allow"],
+    ["completion.quantitative-yesterday", "subject", "allow"],
+    ["rpc.assign-subject-intervention", "senior", "allow"],
+    ["assignment.intervention-attribution", "senior", "allow"],
+    ["assignment.intervention", "direct", "allow"],
+    ["assignment.intervention", "senior", "allow"],
+    ["assignment.intervention", "subject", "allow"],
+    ["assignment.intervention", "peer", "deny"],
+    ["assignment.intervention", "outsider", "deny"],
+    ["audit.direct-assignment", "direct", "allow"],
+    ["audit.direct-assignment", "senior", "allow"],
+    ["audit.direct-assignment", "subject", "deny"],
+    ["audit.direct-assignment", "peer", "deny"],
+    ["audit.direct-assignment", "outsider", "deny"],
+    ["audit.intervention", "direct", "allow"],
+    ["audit.intervention", "senior", "allow"],
+    ["audit.intervention", "subject", "deny"],
+    ["audit.intervention", "peer", "deny"],
+    ["audit.intervention", "outsider", "deny"],
+    ["audit.excuse", "direct", "allow"],
+    ["audit.excuse", "senior", "allow"],
+    ["audit.excuse", "subject", "deny"],
+    ["audit.excuse", "peer", "deny"],
+    ["audit.excuse", "outsider", "deny"],
+    ["audit.correction", "direct", "allow"],
+    ["audit.correction", "senior", "allow"],
+    ["audit.correction", "subject", "deny"],
+    ["audit.correction", "peer", "deny"],
+    ["audit.correction", "outsider", "deny"],
+    ...[
+      "profiles", "mentorship_invitations", "mentorship_relationships", "habit_definitions",
+      "habit_assignments", "assignment_preferences", "completions", "excused_days",
+      "attention_items", "followups", "daily_reviews", "reminder_preferences", "audit_events",
+    ].map((table) => [`table.${table}`, "anonymous", "deny"]),
+    ...[
+      "record_completion", "record_follow_up", "remove_completion", "end_habit_assignment",
+      "assign_habit_definition", "grant_excused_day", "record_daily_review",
+      "reconcile_my_attention", "claim_mentorship_invitation", "missed_assignment_ids",
+      "handle_new_auth_user", "reject_mentorship_cycle",
+    ].map((fn) => [`rpc.${fn}`, "anonymous", "deny"]),
   ].map(([resource, actor, expectation]) => ({ resource, actor, expectation }));
 }
 
@@ -102,8 +199,8 @@ function publicClient(config) {
   });
 }
 
-function dateInTimezone(timezone) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+function dateInTimezone(timezone, value = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(value);
 }
 
 function shiftIsoDate(date, days) {
@@ -113,17 +210,36 @@ function shiftIsoDate(date, days) {
 }
 
 async function rows(client, table, filters) {
-  let query = client.from(table).select("id");
-  for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+  let query = client.from(table).select("*");
+  for (const [column, value] of Object.entries(filters)) {
+    query = value === null ? query.is(column, null) : query.eq(column, value);
+  }
   const result = await query;
   if (result.error) throw result.error;
   return result.data ?? [];
+}
+
+async function completionAmountForAssignment(client, assignmentId) {
+  const assignment = await client.from("habit_assignments")
+    .select("definition_id,target")
+    .eq("id", assignmentId)
+    .single();
+  if (assignment.error) throw assignment.error;
+  const definition = await client.from("habit_definitions")
+    .select("mode,default_target")
+    .eq("id", assignment.data.definition_id)
+    .single();
+  if (definition.error) throw definition.error;
+  return definition.data.mode === "quantitative"
+    ? assignment.data.target ?? definition.data.default_target ?? 1
+    : null;
 }
 
 async function main() {
   const config = loadVerificationConfig(process.env);
   const secrets = [config.publishableKey, ...Object.values(config.identities).flatMap(({ email, password }) => [email, password])];
   const clients = Object.fromEntries(ROLES.map((role) => [role, publicClient(config)]));
+  const anonymous = publicClient(config);
   const users = {};
   const results = [];
   const cleanupMarker = `cetele-hosted-verify:${randomUUID()}`;
@@ -136,9 +252,25 @@ async function main() {
     record(resource, actor, expectation, passed, passed ? "" : `expected ${expectation}, observed ${data.length} row(s)`);
   };
   const checkRpc = async (resource, actor, expectation, fn, args) => {
-    const { error } = await clients[actor].rpc(fn, args);
+    const result = await clients[actor].rpc(fn, args);
+    const { error } = result;
     const passed = expectation === "allow" ? !error : Boolean(error);
     record(resource, actor, expectation, passed, passed ? "" : error?.message ?? "RPC unexpectedly succeeded");
+    return result;
+  };
+  const checkUpdate = async (resource, actor, expectation, table, values, filters) => {
+    let query = clients[actor].from(table).update(values).select("*");
+    for (const [column, value] of Object.entries(filters)) query = query.eq(column, value);
+    const result = await query;
+    const changed = !result.error && (result.data?.length ?? 0) === 1;
+    const passed = expectation === "allow" ? changed : !changed;
+    record(resource, actor, expectation, passed, passed ? "" : result.error?.message ?? `expected ${expectation}, observed ${result.data?.length ?? 0} changed row(s)`);
+    return result;
+  };
+  const checkAnonymousTable = async (table) => {
+    const result = await anonymous.from(table).select("*").limit(1);
+    const passed = Boolean(result.error) || (result.data?.length ?? 0) === 0;
+    record(`table.${table}`, "anonymous", "deny", passed, passed ? "" : "anonymous query returned protected data");
   };
 
   try {
@@ -167,23 +299,197 @@ async function main() {
       await checkRows(resource, actor, expectation, "habit_definitions", { id: shared.data.id });
     }
 
-    const assignments = await clients.subject.from("habit_assignments").select("id,definition_id,target").eq("student_id", users.subject.id).eq("status", "active");
+    const assignments = await clients.subject.from("habit_assignments").select("id,created_at").eq("student_id", users.subject.id).eq("status", "active");
     if (assignments.error || !assignments.data?.length) throw new Error("Seed precondition failed: subject needs an active Habit Assignment.");
-    let assignment;
-    for (const candidate of assignments.data) {
-      const existing = await rows(clients.subject, "completions", { assignment_id: candidate.id, completion_date: today });
-      if (!existing.length) { assignment = candidate; break; }
+    const firstMissedDate = shiftIsoDate(today, -2);
+    const secondMissedDate = shiftIsoDate(today, -1);
+    const [missedCompletions, missedExcuses] = await Promise.all([
+      clients.subject.from("completions").select("assignment_id,completion_date").in("completion_date", [firstMissedDate, secondMissedDate]),
+      clients.subject.from("excused_days").select("assignment_id,excuse_date").eq("student_id", users.subject.id).in("excuse_date", [firstMissedDate, secondMissedDate]),
+    ]);
+    if (missedCompletions.error || missedExcuses.error) throw new Error(`Attention seed precondition failed: ${missedCompletions.error?.message ?? missedExcuses.error?.message}`);
+    const expectedContributors = assignments.data
+      .filter((candidate) => dateInTimezone(subjectProfile.data.timezone, new Date(candidate.created_at)) <= firstMissedDate)
+      .filter((candidate) => !missedCompletions.data.some((entry) => entry.assignment_id === candidate.id))
+      .filter((candidate) => !missedExcuses.data.some((entry) => entry.assignment_id === null || entry.assignment_id === candidate.id))
+      .sort((left, right) => left.created_at.localeCompare(right.created_at) || left.id.localeCompare(right.id))
+      .map(({ id }) => id);
+    if (!expectedContributors.length) throw new Error("Seed precondition failed: subject needs an active assignment missed on both of the previous two local dates.");
+
+    const reconcileResult = await clients.direct.rpc("reconcile_my_attention", {});
+    const attentionResult = await clients.direct.from("attention_items")
+      .select("id,trigger_assignment_id,contributing_assignment_ids,state")
+      .eq("student_id", users.subject.id)
+      .eq("second_missed_date", secondMissedDate)
+      .maybeSingle();
+    const reconciled = !reconcileResult.error
+      && !attentionResult.error
+      && attentionResult.data?.state === "open"
+      && attentionResult.data.trigger_assignment_id === expectedContributors[0]
+      && JSON.stringify(attentionResult.data.contributing_assignment_ids) === JSON.stringify(expectedContributors);
+    record("rpc.reconcile-attention", "direct", "allow", reconciled, reconciled ? "" : reconcileResult.error?.message ?? attentionResult.error?.message ?? "attention outcome did not match the deterministic missed-assignment seed");
+    for (const [actor, expectation] of [["subject", "deny"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("attention.subject", actor, expectation, "attention_items", { student_id: users.subject.id, second_missed_date: secondMissedDate });
     }
-    if (!assignment) throw new Error("Seed precondition failed: subject needs an active assignment without a completion today.");
-    const definition = await clients.subject.from("habit_definitions").select("mode,default_target").eq("id", assignment.definition_id).single();
-    if (definition.error) throw new Error(`Assignment definition precondition failed: ${definition.error.message}`);
+
+    let invalidationPassed = true;
+    let invalidationDetail = "";
+    let reopeningPassed = true;
+    let reopeningDetail = "";
+    const temporaryCompletionIds = [];
+    try {
+      for (let index = 0; index < expectedContributors.length; index += 1) {
+        const assignmentId = expectedContributors[index];
+        const amount = await completionAmountForAssignment(clients.subject, assignmentId);
+        const completion = await clients.subject.rpc("record_completion", {
+          p_assignment_id: assignmentId,
+          p_date: secondMissedDate,
+          p_amount: amount,
+          p_note: cleanupMarker,
+        });
+        if (completion.error) {
+          invalidationPassed = false;
+          invalidationDetail = completion.error.message;
+          break;
+        }
+        temporaryCompletionIds.push(assignmentId);
+
+        const remaining = expectedContributors.slice(index + 1);
+        const transition = await clients.direct.from("attention_items")
+          .select("state,trigger_assignment_id,contributing_assignment_ids,invalidated_at")
+          .eq("id", attentionResult.data.id)
+          .single();
+        const transitionMatches = !transition.error && (remaining.length
+          ? transition.data.state === "open"
+            && transition.data.trigger_assignment_id === remaining[0]
+            && JSON.stringify(transition.data.contributing_assignment_ids) === JSON.stringify(remaining)
+          : transition.data.state === "invalidated" && transition.data.invalidated_at !== null);
+        if (!transitionMatches) {
+          invalidationPassed = false;
+          invalidationDetail = transition.error?.message ?? "attention did not shrink to the remaining contributors or invalidate after the final completion";
+          break;
+        }
+      }
+      if (temporaryCompletionIds.length !== expectedContributors.length) invalidationPassed = false;
+    } finally {
+      for (let index = temporaryCompletionIds.length - 1; index >= 0; index -= 1) {
+        const assignmentId = temporaryCompletionIds[index];
+        const removal = await clients.subject.rpc("remove_completion", {
+          p_assignment_id: assignmentId,
+          p_date: secondMissedDate,
+        });
+        if (removal.error) {
+          reopeningPassed = false;
+          reopeningDetail ||= removal.error.message;
+          continue;
+        }
+        const expectedReopenedContributors = expectedContributors.slice(index);
+        const reopened = await clients.direct.from("attention_items")
+          .select("state,trigger_assignment_id,contributing_assignment_ids,invalidated_at")
+          .eq("id", attentionResult.data.id)
+          .single();
+        const reopeningMatches = !reopened.error
+          && reopened.data.state === "open"
+          && reopened.data.invalidated_at === null
+          && reopened.data.trigger_assignment_id === expectedReopenedContributors[0]
+          && JSON.stringify(reopened.data.contributing_assignment_ids) === JSON.stringify(expectedReopenedContributors);
+        if (!reopeningMatches) {
+          reopeningPassed = false;
+          reopeningDetail ||= reopened.error?.message ?? "completion removal did not reopen attention with the exact contributor set";
+        }
+      }
+      if (temporaryCompletionIds.length !== expectedContributors.length) {
+        reopeningPassed = false;
+        reopeningDetail ||= "temporal invalidation setup did not reach every contributor";
+      }
+    }
+    record("attention.completion-invalidation", "subject", "allow", invalidationPassed, invalidationPassed ? "" : invalidationDetail);
+    record("attention.removal-reopening", "subject", "allow", reopeningPassed, reopeningPassed ? "" : reopeningDetail);
+
+    for (const actor of ["subject", "peer", "outsider"]) {
+      await checkRpc("rpc.record-follow-up", actor, "deny", "record_follow_up", { p_attention_id: attentionResult.data.id, p_note: cleanupMarker });
+    }
+
+    const subjectTheme = await clients.subject.from("profiles").select("theme").eq("id", users.subject.id).single();
+    if (subjectTheme.error) throw new Error(`Theme precondition failed: ${subjectTheme.error.message}`);
+    const alternateTheme = subjectTheme.data.theme === "dark" ? "light" : "dark";
+    await checkUpdate("profile.theme-self-write", "subject", "allow", "profiles", { theme: alternateTheme }, { id: users.subject.id });
+    const restoreTheme = await clients.subject.from("profiles").update({ theme: subjectTheme.data.theme }).eq("id", users.subject.id);
+    if (restoreTheme.error) throw new Error(`Theme restore failed: ${restoreTheme.error.message}`);
+    await checkUpdate("profile.theme-cross-write", "outsider", "deny", "profiles", { theme: alternateTheme }, { id: users.subject.id });
+
+    const reminder = await clients.subject.from("reminder_preferences").select("student_enabled").eq("user_id", users.subject.id).single();
+    if (reminder.error) throw new Error(`Reminder precondition failed: ${reminder.error.message}`);
+    await checkUpdate("reminder.self-write", "subject", "allow", "reminder_preferences", { student_enabled: !reminder.data.student_enabled }, { user_id: users.subject.id });
+    const restoreReminder = await clients.subject.from("reminder_preferences").update({ student_enabled: reminder.data.student_enabled }).eq("user_id", users.subject.id);
+    if (restoreReminder.error) throw new Error(`Reminder restore failed: ${restoreReminder.error.message}`);
+    await checkUpdate("reminder.cross-write", "direct", "deny", "reminder_preferences", { student_enabled: !reminder.data.student_enabled }, { user_id: users.subject.id });
+
+    await checkRpc("rpc.record-daily-review", "direct", "allow", "record_daily_review", {});
+    await checkRpc("rpc.record-daily-review", "senior", "allow", "record_daily_review", {});
+    for (const actor of ["subject", "peer", "outsider"]) {
+      await checkRpc("rpc.record-daily-review", actor, "deny", "record_daily_review", {});
+    }
+    for (const [actor, expectation] of [["direct", "allow"], ["senior", "allow"], ["subject", "deny"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("daily-review.direct", actor, expectation, "daily_reviews", { mentor_id: users.direct.id, review_date: today });
+    }
+
+    const directProfile = await clients.direct.from("profiles").select("display_name").eq("id", users.direct.id).single();
+    if (directProfile.error) throw new Error(`Direct Mentor profile precondition failed: ${directProfile.error.message}`);
+    const artifactDefinition = await clients.direct.from("habit_definitions").insert({
+      author_id: users.direct.id,
+      creator_name: directProfile.data.display_name,
+      name: cleanupMarker,
+      completion_definition: "Hosted verification artifact",
+      mode: "binary",
+      visibility: "private",
+    }).select("id").single();
+    if (artifactDefinition.error) throw new Error(`Verification artifact definition failed: ${artifactDefinition.error.message}`);
+    const assignmentResult = await clients.direct.rpc("assign_habit_definition", { p_definition_id: artifactDefinition.data.id, p_student_id: users.subject.id, p_target: null });
+    const assignmentId = assignmentResult.data;
+    const assignmentCreated = !assignmentResult.error && typeof assignmentId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assignmentId);
+    record("rpc.assign-subject", "direct", "allow", assignmentCreated, assignmentCreated ? "" : assignmentResult.error?.message ?? "RPC did not return a canonical assignment UUID");
+    if (!assignmentCreated) throw new Error("Verification artifact assignment failed.");
 
     for (const [actor, expectation] of [["subject", "allow"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
-      await checkRows("assignment.subject", actor, expectation, "habit_assignments", { id: assignment.id });
+      await checkRows("assignment.subject", actor, expectation, "habit_assignments", { id: assignmentId });
     }
 
-    const amount = definition.data.mode === "quantitative" ? assignment.target ?? definition.data.default_target ?? 1 : null;
-    const completionArgs = { p_assignment_id: assignment.id, p_date: today, p_amount: amount, p_note: cleanupMarker };
+    const preference = await clients.subject.from("assignment_preferences").upsert({
+      assignment_id: assignmentId,
+      student_id: users.subject.id,
+      icon: "book",
+      accent: "#55a7ff",
+      sort_order: 99,
+    }).select("assignment_id").single();
+    record("preference.self", "subject", "allow", !preference.error && preference.data?.assignment_id === assignmentId, preference.error?.message ?? "");
+    for (const actor of ["direct", "senior", "peer", "outsider"]) {
+      await checkRows("preference.subject", actor, "deny", "assignment_preferences", { assignment_id: assignmentId });
+    }
+    await checkUpdate("preference.subject-write", "direct", "deny", "assignment_preferences", { sort_order: 100 }, { assignment_id: assignmentId });
+
+    for (const [actor, expectation] of [["direct", "allow"], ["senior", "allow"], ["subject", "deny"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("audit.direct-assignment", actor, expectation, "audit_events", { entity_id: assignmentId, event_type: "habit_assigned" });
+    }
+
+    const assignmentExcuseArgs = { p_student_id: users.subject.id, p_assignment_id: assignmentId, p_date: today, p_note: cleanupMarker };
+    const assignmentExcuse = await checkRpc("rpc.grant-assignment-excuse", "direct", "allow", "grant_excused_day", assignmentExcuseArgs);
+    for (const actor of ["senior", "subject", "peer", "outsider"]) {
+      await checkRpc("rpc.grant-assignment-excuse", actor, "deny", "grant_excused_day", assignmentExcuseArgs);
+    }
+    await checkRpc("rpc.grant-day-excuse", "direct", "allow", "grant_excused_day", {
+      ...assignmentExcuseArgs,
+      p_assignment_id: null,
+      p_date: shiftIsoDate(today, 30),
+    });
+    for (const [actor, expectation] of [["subject", "allow"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("excuse.subject", actor, expectation, "excused_days", { id: assignmentExcuse.data });
+    }
+    for (const [actor, expectation] of [["direct", "allow"], ["senior", "allow"], ["subject", "deny"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("audit.excuse", actor, expectation, "audit_events", { entity_id: assignmentExcuse.data, event_type: "excused_day_granted" });
+    }
+
+    const completionArgs = { p_assignment_id: assignmentId, p_date: today, p_amount: null, p_note: cleanupMarker };
     await checkRpc("rpc.record-completion", "subject", "allow", "record_completion", completionArgs);
     for (const actor of ["direct", "senior", "peer", "outsider"]) {
       await checkRpc("rpc.record-completion", actor, "deny", "record_completion", completionArgs);
@@ -191,23 +497,162 @@ async function main() {
     await checkRpc("rpc.record-completion.locked-date", "subject", "deny", "record_completion", { ...completionArgs, p_date: shiftIsoDate(today, -2) });
 
     for (const [actor, expectation] of [["subject", "allow"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
-      await checkRows("completion.subject", actor, expectation, "completions", { assignment_id: assignment.id, completion_date: today });
+      await checkRows("completion.subject", actor, expectation, "completions", { assignment_id: assignmentId, completion_date: today });
     }
     for (const actor of ["peer", "outsider"]) {
       await checkRpc("rpc.assign-subject", actor, "deny", "assign_habit_definition", { p_definition_id: shared.data.id, p_student_id: users.subject.id, p_target: null });
     }
-    await checkRpc("rpc.reconcile-attention", "direct", "allow", "reconcile_my_attention", {});
+    await checkRpc("rpc.remove-completion.active-assignment", "subject", "allow", "remove_completion", { p_assignment_id: assignmentId, p_date: today });
+    const removedCompletion = await rows(clients.subject, "completions", { assignment_id: assignmentId, completion_date: today });
+    if (removedCompletion.length) throw new Error("Active-assignment completion removal did not delete the verification artifact.");
+    const restoreCompletion = await clients.subject.rpc("record_completion", completionArgs);
+    if (restoreCompletion.error) throw new Error(`Verification artifact completion restore failed: ${restoreCompletion.error.message}`);
+
+    const quantitativeDefinition = await clients.direct.from("habit_definitions").insert({
+      author_id: users.direct.id,
+      creator_name: directProfile.data.display_name,
+      name: `${cleanupMarker}:quantitative`,
+      completion_definition: "Hosted quantitative verification artifact",
+      mode: "quantitative",
+      default_target: 5,
+      visibility: "private",
+    }).select("id").single();
+    if (quantitativeDefinition.error) throw new Error(`Quantitative definition failed: ${quantitativeDefinition.error.message}`);
+    const quantitativeAssignment = await clients.direct.rpc("assign_habit_definition", {
+      p_definition_id: quantitativeDefinition.data.id,
+      p_student_id: users.subject.id,
+      p_target: 5,
+    });
+    if (quantitativeAssignment.error || typeof quantitativeAssignment.data !== "string") {
+      throw new Error(`Quantitative assignment failed: ${quantitativeAssignment.error?.message ?? "no assignment ID"}`);
+    }
+    await checkRpc("rpc.record-quantitative", "subject", "allow", "record_completion", {
+      p_assignment_id: quantitativeAssignment.data,
+      p_date: today,
+      p_amount: 3,
+      p_note: cleanupMarker,
+    });
+    await checkRpc("rpc.record-quantitative.yesterday", "subject", "allow", "record_completion", {
+      p_assignment_id: quantitativeAssignment.data,
+      p_date: shiftIsoDate(today, -1),
+      p_amount: 2,
+      p_note: cleanupMarker,
+    });
+    await checkRpc("rpc.record-quantitative.missing-amount", "subject", "deny", "record_completion", {
+      p_assignment_id: quantitativeAssignment.data,
+      p_date: today,
+      p_amount: null,
+      p_note: cleanupMarker,
+    });
+    for (const [resource, date, amount] of [
+      ["completion.quantitative-today", today, 3],
+      ["completion.quantitative-yesterday", shiftIsoDate(today, -1), 2],
+    ]) {
+      const persisted = await clients.subject.from("completions")
+        .select("amount,retrospective")
+        .eq("assignment_id", quantitativeAssignment.data)
+        .eq("completion_date", date)
+        .single();
+      const expectedRetrospective = date !== today;
+      const passed = !persisted.error
+        && Number(persisted.data?.amount) === amount
+        && persisted.data?.retrospective === expectedRetrospective;
+      record(resource, "subject", "allow", passed, persisted.error?.message ?? (passed ? "" : "persisted quantitative completion did not match amount/retrospective semantics"));
+    }
+
+    const seniorProfile = await clients.senior.from("profiles").select("display_name").eq("id", users.senior.id).single();
+    if (seniorProfile.error) throw new Error(`Senior profile precondition failed: ${seniorProfile.error.message}`);
+    const interventionDefinition = await clients.senior.from("habit_definitions").insert({
+      author_id: users.senior.id,
+      creator_name: seniorProfile.data.display_name,
+      name: `${cleanupMarker}:intervention`,
+      completion_definition: "Hosted intervention verification artifact",
+      mode: "binary",
+      visibility: "private",
+    }).select("id").single();
+    if (interventionDefinition.error) throw new Error(`Intervention definition failed: ${interventionDefinition.error.message}`);
+    const intervention = await clients.senior.rpc("assign_habit_definition", {
+      p_definition_id: interventionDefinition.data.id,
+      p_student_id: users.subject.id,
+      p_target: null,
+    });
+    const interventionAllowed = !intervention.error && typeof intervention.data === "string";
+    record("rpc.assign-subject-intervention", "senior", "allow", interventionAllowed, intervention.error?.message ?? "");
+    if (!interventionAllowed) throw new Error("Senior intervention assignment failed.");
+    const interventionAttribution = await clients.senior.from("habit_assignments")
+      .select("assigned_by,intervention_for_mentor_id")
+      .eq("id", intervention.data)
+      .single();
+    const attributionPassed = !interventionAttribution.error
+      && interventionAttribution.data?.assigned_by === users.senior.id
+      && interventionAttribution.data?.intervention_for_mentor_id === users.direct.id;
+    record("assignment.intervention-attribution", "senior", "allow", attributionPassed, interventionAttribution.error?.message ?? (attributionPassed ? "" : "intervention attribution did not identify the senior and responsible mentor"));
+    for (const [actor, expectation] of [["subject", "allow"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("assignment.intervention", actor, expectation, "habit_assignments", { id: intervention.data });
+    }
+    for (const [actor, expectation] of [["direct", "allow"], ["senior", "allow"], ["subject", "deny"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("audit.intervention", actor, expectation, "audit_events", { entity_id: intervention.data, event_type: "senior_assignment_intervention" });
+    }
+    const endIntervention = await clients.direct.rpc("end_habit_assignment", { p_assignment_id: intervention.data, p_reason: cleanupMarker });
+    if (endIntervention.error || endIntervention.data !== "void") throw new Error(`Intervention correction failed: ${endIntervention.error?.message ?? "expected void"}`);
+
+    const endResult = await clients.direct.rpc("end_habit_assignment", { p_assignment_id: assignmentId, p_reason: cleanupMarker });
+    const assignmentEnded = !endResult.error && endResult.data === "ended";
+    record("rpc.end-assignment", "direct", "allow", assignmentEnded, assignmentEnded ? "" : endResult.error?.message ?? "RPC did not preserve the completed assignment as ended");
+    await checkRpc("rpc.remove-completion.ended-assignment", "subject", "deny", "remove_completion", { p_assignment_id: assignmentId, p_date: today });
+    for (const [actor, expectation] of [["direct", "allow"], ["senior", "allow"], ["subject", "deny"], ["peer", "deny"], ["outsider", "deny"]]) {
+      await checkRows("audit.correction", actor, expectation, "audit_events", { entity_id: assignmentId, event_type: "assignment_corrected" });
+    }
+
+    const protectedTables = [
+      "profiles", "mentorship_invitations", "mentorship_relationships", "habit_definitions",
+      "habit_assignments", "assignment_preferences", "completions", "excused_days",
+      "attention_items", "followups", "daily_reviews", "reminder_preferences", "audit_events",
+    ];
+    for (const table of protectedTables) await checkAnonymousTable(table);
+    const anonymousRpcs = [
+      ["record_completion", { p_assignment_id: assignmentId, p_date: today, p_amount: null, p_note: "" }],
+      ["record_follow_up", { p_attention_id: attentionResult.data.id, p_note: "" }],
+      ["remove_completion", { p_assignment_id: assignmentId, p_date: today }],
+      ["end_habit_assignment", { p_assignment_id: assignmentId, p_reason: "" }],
+      ["assign_habit_definition", { p_definition_id: shared.data.id, p_student_id: users.subject.id, p_target: null }],
+      ["grant_excused_day", { p_student_id: users.subject.id, p_assignment_id: assignmentId, p_date: today, p_note: "" }],
+      ["record_daily_review", {}],
+      ["reconcile_my_attention", {}],
+      ["claim_mentorship_invitation", { p_token_hash: "0".repeat(64), p_user_id: users.subject.id }],
+      ["missed_assignment_ids", { p_student_id: users.subject.id, p_first_date: firstMissedDate, p_second_date: secondMissedDate }],
+      ["handle_new_auth_user", {}],
+      ["reject_mentorship_cycle", {}],
+    ];
+    for (const [fn, args] of anonymousRpcs) {
+      const result = await anonymous.rpc(fn, args);
+      const privilegeDenied = result.error?.code === "42501" || result.error?.code === "PGRST202";
+      record(
+        `rpc.${fn}`,
+        "anonymous",
+        "deny",
+        privilegeDenied,
+        privilegeDenied ? "" : result.error ? `anonymous reached RPC body (${result.error.code ?? "unknown error code"})` : "anonymous RPC unexpectedly succeeded",
+      );
+    }
+
+    const matrixKey = ({ resource, actor, expectation }) => `${resource}\u0000${actor}\u0000${expectation}`;
+    const plannedKeys = plannedMatrix().map(matrixKey).sort();
+    const observedKeys = results.map(matrixKey).sort();
+    if (JSON.stringify(observedKeys) !== JSON.stringify(plannedKeys)) {
+      throw new Error("Hosted verification implementation does not match its declared matrix.");
+    }
 
     const failed = results.filter(({ status }) => status === "FAIL").length;
     const projectRef = new URL(config.url).hostname.split(".")[0];
     console.log(JSON.stringify({ gate: failed ? "FAIL" : "PASS", project_ref: projectRef, cleanup_marker: cleanupMarker, passed: results.length - failed, failed, results }, null, 2));
     if (failed) process.exitCode = 1;
   } catch (error) {
-    console.error(redact(error instanceof Error ? error.message : error, secrets));
-    console.error(`Cleanup marker (if a completion was written): ${cleanupMarker}`);
+    console.error(redact(errorSummary(error), secrets));
+    console.error(`Cleanup marker (marker-bearing artifacts may have been written): ${cleanupMarker}`);
     process.exitCode = 1;
   } finally {
-    await Promise.allSettled(Object.values(clients).map((client) => client.auth.signOut({ scope: "local" })));
+    await Promise.allSettled([...Object.values(clients), anonymous].map((client) => client.auth.signOut({ scope: "local" })));
   }
 }
 

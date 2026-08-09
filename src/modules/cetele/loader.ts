@@ -6,8 +6,8 @@ import { requireUser } from "@/lib/supabase/server";
 
 export type DataAdapter = "local" | "supabase";
 
-function localDate(timezone: string) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+function localDate(timezone: string, instant = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(instant);
 }
 
 export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: DataAdapter }> {
@@ -17,7 +17,7 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   if (reconciliationError) throw new Error(reconciliationError.message);
   const [profilesResult, invitationsResult, relationshipsResult, definitionsResult, assignmentsResult, completionsResult, attentionResult, followupsResult, reviewsResult, excusesResult, remindersResult] = await Promise.all([
     supabase.from("profiles").select("id,display_name,timezone,group_name,theme"),
-    supabase.from("mentorship_invitations").select("id,mentor_id,invitee_name").is("accepted_at", null).is("cancelled_at", null),
+    supabase.from("mentorship_invitations").select("id,mentor_id,invitee_name,expires_at").is("accepted_at", null).is("cancelled_at", null),
     supabase.from("mentorship_relationships").select("mentor_id,student_id,status").eq("status", "active"),
     supabase.from("habit_definitions").select("*"),
     supabase.from("habit_assignments").select("*,assignment_preferences(icon,accent,sort_order)").in("status", ["active", "ended"]),
@@ -43,12 +43,16 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   }));
   for (const invitation of invitationsResult.data ?? []) {
     if (people.some((entry) => entry.id === invitation.id)) continue;
-    people.push({ id: invitation.id, name: invitation.invitee_name, initials: invitation.invitee_name.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase(), mentorId: invitation.mentor_id, invitation: "pending" });
+    people.push({ id: invitation.id, name: invitation.invitee_name, initials: invitation.invitee_name.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase(), mentorId: invitation.mentor_id, invitation: "pending", invitationExpiresAt: invitation.expires_at });
   }
   const definitions: HabitDefinition[] = (definitionsResult.data ?? []).map((item) => ({ id: item.id, authorId: item.author_id, creatorName: item.creator_name, name: item.name, description: item.description, guide: item.guide, why: item.why_it_matters, completionDefinition: item.completion_definition, tips: item.practical_tips, mode: item.mode, defaultTarget: item.default_target, visibility: item.visibility, sourceAuthor: item.source_creator_name ?? undefined }));
   const assignments: Assignment[] = (assignmentsResult.data ?? [])
     .filter((item) => item.status === "active" || item.status === "ended")
-    .map((item) => { const preference = Array.isArray(item.assignment_preferences) ? item.assignment_preferences[0] : item.assignment_preferences; return { id: item.id, definitionId: item.definition_id, studentId: item.student_id, assignedBy: item.assigned_by, target: item.target, accent: preference?.accent ?? "#55a7ff", icon: preference?.icon ?? "book", order: preference?.sort_order ?? 0, status: item.status }; });
+    .map((item) => {
+      const preference = Array.isArray(item.assignment_preferences) ? item.assignment_preferences[0] : item.assignment_preferences;
+      const timezone = profiles.find((profile) => profile.id === item.student_id)?.timezone ?? "Europe/Stockholm";
+      return { id: item.id, definitionId: item.definition_id, studentId: item.student_id, assignedBy: item.assigned_by, startedOn: localDate(timezone, new Date(item.created_at)), endedOn: item.ended_at ? localDate(timezone, new Date(item.ended_at)) : null, target: item.target, accent: preference?.accent ?? "#55a7ff", icon: preference?.icon ?? "book", order: preference?.sort_order ?? 0, status: item.status };
+    });
   const completions: Completion[] = (completionsResult.data ?? []).map((item) => ({ assignmentId: item.assignment_id, date: item.completion_date, amount: item.amount, retrospective: item.retrospective, note: item.note }));
   const attention: AttentionItem[] = (attentionResult.data ?? []).map((item) => {
     const followup = (followupsResult.data ?? []).find((entry) => entry.attention_id === item.id);

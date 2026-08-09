@@ -10,6 +10,7 @@ import {
   ChevronUp,
   CircleHelp,
   GripVertical,
+  History,
   Info,
   Layers3,
   MoreHorizontal,
@@ -22,6 +23,7 @@ import { canEditCompletion, previousDomainDate } from "@/modules/cetele/policy";
 import { assignmentsFor, completionFor, definition, recentDates } from "@/modules/cetele/selectors";
 import { useCetele } from "@/modules/cetele/store";
 import type { Assignment } from "@/modules/cetele/types";
+import { hrefWithUiState, useUiSearch } from "@/modules/cetele/url-state";
 
 const dateFormatter = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", weekday: "long", timeZone: "UTC" });
 const accentChoices = ["#55a7ff", "#f164ef", "#3ed68b", "#ff913f"];
@@ -32,17 +34,22 @@ function dateLabel(date: string) {
   return dateFormatter.format(new Date(`${date}T12:00:00Z`));
 }
 
-export function EvidenceStrip({ assignment, count = 7, onEditDate }: { assignment: Assignment; count?: number; onEditDate?: (date: string) => void }) {
+export function EvidenceStrip({ assignment, count = 7, dates, onEditDate }: { assignment: Assignment; count?: number; dates?: string[]; onEditDate?: (date: string) => void }) {
   const { state } = useCetele();
   const habit = definition(state, assignment.definitionId);
-  return <div className="evidence-strip" aria-label={`${habit?.name ?? "Alışkanlık"}: son ${count} gün`}>
-    {recentDates(state.today, count).map((date) => {
+  const evidenceDates = dates ?? recentDates(state.today, count);
+  const summary = dates ? `${evidenceDates.length} günlük görünüm` : `son ${count} gün`;
+  return <div className="evidence-strip" aria-label={`${habit?.name ?? "Alışkanlık"}: ${summary}`}>
+    {evidenceDates.map((date) => {
       const completion = completionFor(state, assignment.id, date);
       const excused = state.excuses.some((item) => item.date === date && item.studentId === assignment.studentId && (item.assignmentId === null || item.assignmentId === assignment.id));
       const retrospective = completion?.retrospective;
-      const editable = Boolean(onEditDate) && canEditCompletion(date, state.today) && !excused;
-      const status = excused ? "mazeretli" : completion ? retrospective ? "geriye dönük tamamlandı" : "tamamlandı" : date === state.today ? "bugün bekliyor" : "tamamlanmadı";
-      const className = clsx("evidence-cell", completion && "done", excused && "excused", retrospective && "retrospective", date === state.today && "today", editable && "editable");
+      const beforeAssignment = date < (assignment.startedOn ?? state.today);
+      const afterAssignment = Boolean(assignment.endedOn && date > assignment.endedOn);
+      const unavailable = beforeAssignment || afterAssignment;
+      const editable = Boolean(onEditDate) && canEditCompletion(date, state.today) && !excused && !unavailable;
+      const status = beforeAssignment ? "henüz atanmamıştı" : afterAssignment ? "atama sona ermişti" : excused ? "mazeretli" : completion ? retrospective ? "geriye dönük tamamlandı" : "tamamlandı" : date === state.today ? "bugün bekliyor" : date > state.today ? "henüz gelmedi" : "tamamlanmadı";
+      const className = clsx("evidence-cell", !unavailable && completion && "done", !unavailable && excused && "excused", !unavailable && retrospective && "retrospective", unavailable && "unavailable", date === state.today && "today", editable && "editable");
       const label = `${dateLabel(date)}: ${status}${editable ? ". Değiştirmek için bas." : ""}`;
       const style = { "--accent": assignment.accent } as React.CSSProperties;
       return editable
@@ -52,11 +59,15 @@ export function EvidenceStrip({ assignment, count = 7, onEditDate }: { assignmen
   </div>;
 }
 
-export function HabitCard({ assignment, compact = false, historyCount }: { assignment: Assignment; compact?: boolean; historyCount?: number }) {
+export function HabitCard({ assignment, compact = false, historyCount, historyDates }: { assignment: Assignment; compact?: boolean; historyCount?: number; historyDates?: string[] }) {
   const { state, dispatch } = useCetele();
+  const uiSearch = useUiSearch();
   const habit = definition(state, assignment.definitionId);
   const editable = assignment.studentId === state.currentUserId && assignment.status === "active";
   const todayCompletion = completionFor(state, assignment.id, state.today);
+  const endedStatusLabel = assignment.status === "ended" && assignment.endedOn && assignment.endedOn < state.today
+    ? `${habit?.name ?? "Alışkanlık"}: atama ${dateLabel(assignment.endedOn)} tarihinde sona erdi`
+    : null;
   const yesterday = previousDomainDate(state.today);
   const yesterdayCompletion = completionFor(state, assignment.id, yesterday);
   const [panel, setPanel] = useState<Panel>(null);
@@ -139,7 +150,9 @@ export function HabitCard({ assignment, compact = false, historyCount }: { assig
           <button type="button" className="habit-utility" onClick={() => setPanel("info")} aria-label={`${habit.name} bilgileri`}><Info size={18} /></button>
           {editable ? <button type="button" className="habit-utility" onClick={() => setPanel("menu")} aria-label={`${habit.name} seçenekleri`} aria-haspopup="dialog"><MoreHorizontal size={20} /></button> : null}
         </div>
-        {!editable
+        {endedStatusLabel
+          ? <span className="completion-action read-only" aria-label={endedStatusLabel}><History size={22} aria-hidden="true" /></span>
+          : !editable
           ? <span className={clsx("completion-action", "read-only", todayCompletion && "complete")} aria-label={`${habit.name}: ${todayCompletion ? "bugün tamamlandı" : "bugün bekliyor"}`}>{todayCompletion ? <Check size={26} /> : <span aria-hidden="true">—</span>}</span>
           : <button
               type="button"
@@ -157,7 +170,7 @@ export function HabitCard({ assignment, compact = false, historyCount }: { assig
             </button>}
       </div>
       <div className="habit-evidence">
-        <EvidenceStrip assignment={assignment} count={historyCount ?? (compact ? 7 : 28)} onEditDate={editable ? toggleDate : undefined} />
+        <EvidenceStrip assignment={assignment} count={historyCount ?? (compact ? 7 : 28)} dates={historyDates} onEditDate={editable ? toggleDate : undefined} />
       </div>
       {habit.mode === "quantitative" && todayCompletion ? <div className="completion-meta"><span>{todayCompletion.amount} / {assignment.target} bugün kaydedildi</span>{todayCompletion.note ? <span>Not eklendi</span> : null}</div> : null}
     </article>
@@ -180,7 +193,7 @@ export function HabitCard({ assignment, compact = false, historyCount }: { assig
         <button type="button" onClick={() => { setPanel(null); toggleDate(yesterday); }}><RotateCcw size={19} /><span><strong>{yesterdayCompletion && habit.mode === "binary" ? "Dünün tamamlamasını kaldır" : "Dünü tamamla"}</strong><small>Dün hâlâ düzenlenebilir</small></span></button>
         {todayCompletion ? <button type="button" onClick={openTodayNote}><CircleHelp size={19} /><span><strong>Bugünün notu</strong><small>{todayCompletion.note ? "Notu düzenle" : "Kısa bir düşünce ekle"}</small></span></button> : null}
         <button type="button" onClick={openEditPanel}><Palette size={19} /><span><strong>Düzenle</strong><small>Renk ve simge</small></span></button>
-        <Link href="/settings"><Bell size={19} /><span><strong>Hatırlatıcı</strong><small>Bildirim tercihlerini aç</small></span></Link>
+        <Link href={hrefWithUiState("/settings", uiSearch)}><Bell size={19} /><span><strong>Hatırlatıcı</strong><small>Bildirim tercihlerini aç</small></span></Link>
         <button type="button" disabled><Layers3 size={19} /><span><strong>Kategoriler</strong><small>Yakında</small></span></button>
         <button type="button" onClick={() => setPanel("reorder")}><GripVertical size={19} /><span><strong>Alışkanlıkları sırala</strong><small>Günlük görünümdeki sırayı değiştir</small></span></button>
       </div>

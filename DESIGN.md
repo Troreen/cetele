@@ -240,7 +240,7 @@ Mentor surfaces widen “The Quiet Ledger” around people and responsibility wi
 - **Operational geometry:** Dense navigation may use 7px, fields and segmented controls 8px, and mentor panels 10px. Habit cards retain their canonical 12px radius and evidence cells remain 2–4px.
 - **Operational type:** Mentor rows and controls add 11px, 13px, 14px, 16px, and 18px UI steps; 24–28px is reserved for the brand and page/auth titles. The daily habit typography remains unchanged.
 
-**The Relationship-First Rule.** Mentor overviews organize around people and accountable owners, not KPI cards or chart walls.
+**The Relationship-First Rule.** Mentor overviews organize around people and responsible Direct Mentors, not KPI cards or chart walls.
 
 **The Quiet Intervention Rule.** Senior actions remain secondary, identify the ordinary responsible mentor, and are always attributable.
 

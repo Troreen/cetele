@@ -30,8 +30,10 @@ export type Action =
   | { type: "end-assignment"; assignmentId: string }
   | { type: "customize-assignment"; assignmentId: string; accent: string; icon: "book" | "heart" | "walk" | "focus"; order: number }
   | { type: "reorder-assignments"; orderedIds: string[] }
-  | { type: "invite"; name: string; email: string }
+  | { type: "invite"; name: string }
+  | { type: "revoke-invitation"; invitationId: string }
   | { type: "theme"; theme: Theme }
+  | { type: "url-theme"; theme: Theme }
   | { type: "reminders"; key: "studentEnabled" | "mentorEnabled" | "studentTime" | "mentorTime"; value: boolean | string };
 
 export function reduceCeteleState(state: CeteleState, action: Action): CeteleState {
@@ -98,13 +100,24 @@ export function reduceCeteleState(state: CeteleState, action: Action): CeteleSta
       if (state.assignments.some((item) => item.definitionId === action.definitionId && item.studentId === action.studentId && item.status === "active")) return state;
       const definition = state.definitions.find((item) => item.id === action.definitionId);
       if (!definition) return state;
-      return { ...state, assignments: [...state.assignments, { id: `${action.studentId}-${action.definitionId}`, definitionId: action.definitionId, studentId: action.studentId, assignedBy: state.currentUserId, target: action.target ?? definition.defaultTarget, accent: "#ff913f", icon: "heart", order: 99, status: "active" }] };
+      return { ...state, assignments: [...state.assignments, { id: `${action.studentId}-${action.definitionId}`, definitionId: action.definitionId, studentId: action.studentId, assignedBy: state.currentUserId, startedOn: state.today, endedOn: null, target: action.target ?? definition.defaultTarget, accent: "#ff913f", icon: "heart", order: 99, status: "active" }] };
     }
     case "end-assignment": {
       const hasCompletion = state.completions.some((item) => item.assignmentId === action.assignmentId);
-      return { ...state, assignments: hasCompletion
-        ? state.assignments.map((item) => item.id === action.assignmentId ? { ...item, status: "ended" } : item)
-        : state.assignments.filter((item) => item.id !== action.assignmentId) };
+      const attention = state.attention.map((item) => {
+        if (item.state !== "open" || !(item.contributingAssignmentIds ?? [item.assignmentId]).includes(action.assignmentId)) return item;
+        const remaining = (item.contributingAssignmentIds ?? [item.assignmentId]).filter((id) => id !== action.assignmentId);
+        return remaining.length
+          ? { ...item, assignmentId: remaining[0], contributingAssignmentIds: remaining }
+          : { ...item, state: "invalidated" as const };
+      });
+      return {
+        ...state,
+        assignments: hasCompletion
+        ? state.assignments.map((item) => item.id === action.assignmentId ? { ...item, status: "ended", endedOn: state.today } : item)
+          : state.assignments.filter((item) => item.id !== action.assignmentId),
+        attention,
+      };
     }
     case "customize-assignment": return { ...state, assignments: state.assignments.map((item) => item.id === action.assignmentId ? { ...item, accent: action.accent, icon: action.icon, order: action.order } : item) };
     case "reorder-assignments": {
@@ -115,7 +128,9 @@ export function reduceCeteleState(state: CeteleState, action: Action): CeteleSta
       const id = `invite-${Date.now()}`;
       return { ...state, people: [...state.people, { id, name: action.name, initials: action.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(), mentorId: state.currentUserId, invitation: "pending" }] };
     }
-    case "theme": return { ...state, theme: action.theme };
+    case "revoke-invitation": return { ...state, people: state.people.filter((person) => person.id !== action.invitationId || person.invitation !== "pending") };
+    case "theme":
+    case "url-theme": return { ...state, theme: action.theme };
     case "reminders": return { ...state, reminders: { ...state.reminders, [action.key]: action.value } };
   }
 }
@@ -136,7 +151,10 @@ export function CeteleProvider({ children, initialState = fixtureState, adapter 
   useLayoutEffect(() => { if (hydrated && adapter === "local") localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [adapter, hydrated, state]);
   useLayoutEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
   const dispatch = useCallback((action: Action) => {
-    if (adapter === "local") {
+    if (action.type === "url-theme") {
+      rawDispatch(action);
+    }
+    else if (adapter === "local") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(reduceCeteleState(state, action)));
       rawDispatch(action);
     }

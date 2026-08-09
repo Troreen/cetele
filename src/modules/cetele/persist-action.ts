@@ -2,7 +2,7 @@
 
 import type { Action } from "./store";
 import type { CeteleState } from "./types";
-import { adoptHabitDefinition, assignHabitDefinition, createHabitDefinition, customizeHabitAssignment, endHabitAssignment, grantExcusedDay, inviteDirectStudent, markDailyReview, recordCompletion, recordFollowUp, removeCompletion, saveReminderPreferences, saveTheme } from "./actions";
+import { adoptHabitDefinition, assignHabitDefinition, createHabitDefinition, createManualInvitation, customizeHabitAssignment, endHabitAssignment, grantExcusedDay, markDailyReview, recordCompletion, recordFollowUp, removeCompletion, revokeManualInvitation, saveReminderPreferences, saveTheme } from "./actions";
 import { previousDomainDate } from "./policy";
 
 export async function persistAction(action: Action, state: CeteleState) {
@@ -33,8 +33,10 @@ export async function persistAction(action: Action, state: CeteleState) {
       const assignment = state.assignments.find((item) => item.id === assignmentId);
       return assignment ? customizeHabitAssignment({ assignmentId, accent: assignment.accent, icon: assignment.icon, order }) : Promise.resolve();
     })); return;
-    case "invite": await inviteDirectStudent({ name: action.name, email: action.email }); return;
+    case "invite": await createManualInvitation({ name: action.name }); return;
+    case "revoke-invitation": await revokeManualInvitation({ invitationId: action.invitationId }); return;
     case "theme": await saveTheme({ theme: action.theme }); return;
+    case "url-theme": return;
     case "reminders": await saveReminderPreferences({ ...state.reminders, [action.key]: action.value }); return;
     case "hydrate": return;
   }

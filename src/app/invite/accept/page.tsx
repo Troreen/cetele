@@ -1,2 +1,2 @@
 import { AuthCard } from "@/components/auth-card";
-export default async function Page({ searchParams }: { searchParams: Promise<{ invitation?: string }> }) { const { invitation } = await searchParams; return <AuthCard mode="invite" invitationId={invitation} />; }
+export default function Page() { return <AuthCard mode="claim" />; }

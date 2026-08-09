@@ -2,11 +2,11 @@
 
 This file is the authoritative delivery sequence. Product behavior remains authoritative in [`PRODUCT.md`](PRODUCT.md) and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md); GitHub issues hold execution discussion.
 
-## Current truth — 2026-08-09
+## Current truth — 2026-08-10
 
-- **V1 application scope is implemented and locally verified.** On 2026-08-09, the current candidate's `npm.cmd run verify` passed ESLint, strict TypeScript, 28 Vitest tests, and the production build. `npm.cmd run test:e2e` passed all 9 Playwright journeys.
-- **Production readiness is gated.** The Supabase schema, RPCs, and RLS policies exist, but the migration has not been executed against a connected hosted project and the multi-identity allow/deny matrix has not been exercised.
-- The local adapter proves application behavior and browser persistence only. Production authentication, PostgreSQL persistence, email delivery, and RLS remain **hosted-unverified**.
+- **V1 application scope is implemented and locally verified.** On 2026-08-10, the current candidate's `npm.cmd run verify` passed ESLint, generated-route strict TypeScript, 79 Vitest tests, and the production build. `npm.cmd run test:e2e` passed all 9 Playwright Chrome journeys and exited cleanly through its owned Windows server lifecycle.
+- **The hosted Supabase gate passed.** Migrations `001`, `002`, and additive upgrade migration `003` were applied to a disposable project. The redaction-safe executable matrix passed 134/134 and the complementary manual browser/database matrix passed across five isolated identities.
+- The local adapter remains the safe development default. Production authentication, PostgreSQL persistence, manual invitation claiming, and RLS have now been verified against the disposable hosted environment described in the verification record.
 - Keep `NEXT_PUBLIC_CETELE_DATA_ADAPTER=local` until Milestone 2 stops successfully.
 
 ## Milestone sequence
@@ -25,17 +25,17 @@ This file is the authoritative delivery sequence. Product behavior remains autho
 
 ### 2. Pass the hosted Supabase and RLS gate
 
-**Status:** ready; blocked only on the disposable hosted project and credentials
+**Status:** complete — hosted matrix 134/134 plus manual matrix passed on 2026-08-10
 
-Follow the full [V1 verification contract](docs/verification/V1_VERIFICATION.md) in a disposable hosted project, using [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql) and disposable subject, Direct Mentor, Mentor Above, peer, and outsider identities.
+Follow the full [V1 verification contract](docs/verification/V1_VERIFICATION.md) in a disposable hosted project, using [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql), [`202608090002_manual_secure_invitations.sql`](supabase/migrations/202608090002_manual_secure_invitations.sql), and the additive upgrade migration [`202608090003_post_v1_upgrade_fixes.sql`](supabase/migrations/202608090003_post_v1_upgrade_fixes.sql), plus disposable subject, Direct Mentor, Mentor Above, peer, and outsider identities.
 
-**Local preparation complete:** `npm.cmd run verify:hosted` now provides a fail-closed, redaction-safe 32-check initial identity matrix. The migration has explicit least-privilege grants, private hierarchy helpers, RLS identity-call hardening, missing FK/filter indexes, and static migration-contract tests. Hosted mutation failures are handled and surfaced to the user. None of this substitutes for executing the migration and matrix against PostgreSQL.
+**Evidence:** `npm.cmd run verify:hosted` passed 134/134 after the sequential `001` → `002` → `003` install. Manual evidence covered secure-link claim and exceptional denial states, reload persistence, today/yesterday edits, quantitative values, Daily Review, completion- and excuse-driven attention invalidation/reopening, private/upward Follow-up visibility, Shared Habit adoption, cross-tree denial, theme/reminder persistence, and database advisor review. The redaction-safe run record is linked below.
 
-**Stopping condition:** every required allow and deny case passes; invitation/password setup, reload persistence, date locks, attention invalidation and reopening, note privacy, Shared Habit visibility, and attributable interventions are verified; the project reference and sanitized command output are recorded in the verification contract and [issue #3](https://github.com/Troreen/cetele/issues/3). Any defect discovered is fixed and both local gates are rerun before this milestone stops.
+**Stopping condition:** every required allow and deny case passes; manual secure-link claim, link expiry/revocation/replay denial, credential setup, reload persistence, date locks, attention invalidation and reopening, note privacy, Shared Habit visibility, and attributable interventions are verified; the project reference and sanitized command output are recorded in the verification contract and [issue #3](https://github.com/Troreen/cetele/issues/3). Any defect discovered is fixed and both local gates are rerun before this milestone stops.
 
 ### 3. Produce the V1 release candidate
 
-**Status:** pending Milestone 2
+**Status:** ready to publish — local and hosted release gates passed; candidate commit and push pending
 
 Reconcile the hosted evidence, local evidence, documentation, and issue state. Close issues #3 and #1 only after their stopping conditions are met.
 
@@ -46,9 +46,9 @@ Reconcile the hosted evidence, local evidence, documentation, and issue state. C
 - Scope and invariants: [`PRODUCT.md`](PRODUCT.md), [`CONTEXT.md`](CONTEXT.md), and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md)
 - UX contract: [`DESIGN.md`](DESIGN.md) and the [visual direction](docs/product/cetele_visual_identity_ux_direction_v1.md)
 - Local and hosted gates: [`docs/verification/V1_VERIFICATION.md`](docs/verification/V1_VERIFICATION.md)
-- Production database contract: [`supabase/migrations/202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql)
+- Production database contract: [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql), [`202608090002_manual_secure_invitations.sql`](supabase/migrations/202608090002_manual_secure_invitations.sql), then [`202608090003_post_v1_upgrade_fixes.sql`](supabase/migrations/202608090003_post_v1_upgrade_fixes.sql)
 - Execution tracking: [issue #1](https://github.com/Troreen/cetele/issues/1) and [hosted-verification issue #3](https://github.com/Troreen/cetele/issues/3)
 
 ## Evidence rule
 
-Record only checks performed against the named revision and environment. A plan, fixture, local adapter result, schema review, or migration file is not hosted Supabase evidence. Until Milestone 2 stops successfully, describe production persistence and RLS as **hosted-unverified**.
+Record only checks performed against the named revision and environment. A plan, fixture, local adapter result, schema review, or migration file is not hosted Supabase evidence. Hosted claims in this plan refer only to the disposable project and dated run record.

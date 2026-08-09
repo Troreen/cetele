@@ -6,7 +6,10 @@ import { browserNavigation, CeteleProvider, useCetele } from "@/modules/cetele/s
 import type { Action } from "@/modules/cetele/store";
 
 describe("CeteleProvider hosted persistence", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   it("surfaces a handled Turkish error without optimistic hosted state", async () => {
     const rejectPersistence = async () => { throw new Error("network unavailable"); };
@@ -36,5 +39,23 @@ describe("CeteleProvider hosted persistence", () => {
 
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("applies a shared-link theme without persisting or reloading", () => {
+    const persist = vi.fn().mockResolvedValue(undefined);
+    const reload = vi.spyOn(browserNavigation, "reload").mockImplementation(() => undefined);
+    let dispatch: ((action: Action) => void) | undefined;
+    function ThemeProbe() {
+      const store = useCetele();
+      dispatch = store.dispatch;
+      return <output aria-label="Etkin tema">{store.state.theme}</output>;
+    }
+
+    render(<CeteleProvider adapter="supabase" persist={persist}><ThemeProbe /></CeteleProvider>);
+    act(() => dispatch?.({ type: "url-theme", theme: "light" }));
+
+    expect(screen.getByLabelText("Etkin tema")).toHaveTextContent("light");
+    expect(persist).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
   });
 });

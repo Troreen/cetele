@@ -104,4 +104,33 @@ describe("Çetele policy interface", () => {
       fixtureState.completions.filter((item) => item.assignmentId === "mentor-reading"),
     );
   });
+
+  it("removes a terminal assignment from every open Needs Attention contributor set", () => {
+    const attention = [{
+      ...fixtureState.attention[0],
+      assignmentId: "ayse-reading",
+      contributingAssignmentIds: ["ayse-reading", "ayse-focus"],
+    }];
+    const withHistoricalCompletion = {
+      ...fixtureState,
+      completions: [...fixtureState.completions, {
+        assignmentId: "ayse-reading",
+        date: "2026-08-01",
+        amount: 10,
+        retrospective: false,
+        note: "",
+      }],
+      attention,
+    };
+
+    const ended = reduceCeteleState(withHistoricalCompletion, { type: "end-assignment", assignmentId: "ayse-reading" });
+    expect(ended.attention[0]).toMatchObject({
+      state: "open",
+      assignmentId: "ayse-focus",
+      contributingAssignmentIds: ["ayse-focus"],
+    });
+
+    const voided = reduceCeteleState({ ...fixtureState, attention: [{ ...attention[0], contributingAssignmentIds: ["ayse-reading"] }] }, { type: "end-assignment", assignmentId: "ayse-reading" });
+    expect(voided.attention[0].state).toBe("invalidated");
+  });
 });

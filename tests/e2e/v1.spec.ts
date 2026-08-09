@@ -6,12 +6,22 @@ async function openFresh(page: Page, path: string) {
   await page.reload();
 }
 
-test("invitee accepts the invitation, sets a password, and reaches Today", async ({ page }) => {
-  await openFresh(page, "/invite/accept");
-  await page.getByRole("button", { name: "E-postamı doğrula" }).click();
-  await expect(page).toHaveURL(/set-password/);
-  await page.getByRole("button", { name: "Parolayı kaydet" }).click();
+test("local demo exercises private manual-link handoff without claiming hosted verification", async ({ page }) => {
+  await openFresh(page, "/students");
+  await page.getByRole("button", { name: "Öğrenci davet et" }).click();
+  await page.getByLabel("Ad soyad").fill("Selin Yılmaz");
+  await page.getByRole("button", { name: "Güvenli bağlantı oluştur" }).click();
+  const invitationUrl = await page.getByLabel("Davet bağlantısı").inputValue();
+  expect(invitationUrl).toContain("/invite/accept#token=");
+  expect(invitationUrl).not.toContain("?token=");
+  await expect(page.getByText(/yalnızca davet ettiğin kişiye/)).toBeVisible();
+  await expect(page.getByText(/Yerel demo bağlantısıdır/)).toBeVisible();
+
+  await page.getByRole("link", { name: "Yerel demo bağlantısını aç" }).click();
+  await expect(page.getByRole("heading", { name: "Davetini kabul et" })).toBeVisible();
+  await page.getByRole("button", { name: "Daveti kabul et" }).click();
   await expect(page).toHaveURL(/today/);
+  expect(new URL(page.url()).hash).toBe("");
   await expect(page.getByRole("heading", { name: "Bugün" })).toBeVisible();
 });
 

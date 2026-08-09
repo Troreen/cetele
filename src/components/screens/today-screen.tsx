@@ -5,12 +5,15 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Check, Eye } from "lucide-react";
 import { HabitCard } from "../habit-card";
 import { SectionHeader } from "../section-header";
-import { assignmentsFor, completionFor, directStudents } from "@/modules/cetele/selectors";
+import { assignmentsFor, completionFor, currentWeekDates, directStudents } from "@/modules/cetele/selectors";
 import { useCetele } from "@/modules/cetele/store";
+import { hrefWithUiState, useUiSearch } from "@/modules/cetele/url-state";
 
 export function TodayScreen() {
   const { state } = useCetele();
+  const uiSearch = useUiSearch();
   const assignments = assignmentsFor(state, state.currentUserId);
+  const weekDates = currentWeekDates(state.today);
   const incompleteCount = assignments.filter((assignment) => !completionFor(state, assignment.id, state.today)).length;
   const [reminderDue, setReminderDue] = useState(false);
   const [mentorReminderDue, setMentorReminderDue] = useState(false);
@@ -32,7 +35,7 @@ export function TodayScreen() {
   return <div className="personal-shell">
     <SectionHeader title="Bugün" description="Kendi çetelen, kendi ritmin." />
     {state.reminders.studentEnabled ? <p className="privacy-note" role={reminderDue ? "status" : undefined}><Check size={16} /> {reminderDue ? `${incompleteCount} eksik günlük kayıt seni bekliyor.` : `Uygulama içi hatırlatma ${state.reminders.studentTime} için ayarlı.`}</p> : null}
-    <section className="habit-list" aria-label="Bugünkü alışkanlıklar">{assignments.map((assignment) => <HabitCard key={assignment.id} assignment={assignment} />)}</section>
-    {hasStudents ? <section className="mentor-responsibility"><span className="responsibility-icon"><Eye size={21} /></span><div><h2>Mentorluk</h2><p>{reviewed ? "Bugünkü inceleme tamamlandı." : mentorReminderDue ? "Günlük inceleme hatırlatması: doğrudan grubunu gözden geçir." : open ? `${open} öğrenci için takip gerekiyor.` : `İnceleme hatırlatması ${state.reminders.mentorTime} için ayarlı.`}</p></div><span className="responsibility-status">{reviewed ? <><Check size={16} /> İncelendi</> : "Bekliyor"}</span><Link href="/students" className="secondary-button">Öğrencileri gözden geçir <ArrowRight size={17} /></Link></section> : null}
+    <section className="habit-list" aria-label="Bugünkü alışkanlıklar">{assignments.map((assignment) => <HabitCard key={assignment.id} assignment={assignment} compact historyDates={weekDates} />)}</section>
+    {hasStudents ? <section className="mentor-responsibility"><span className="responsibility-icon"><Eye size={21} /></span><div><h2>Mentorluk</h2><p>{reviewed ? "Bugünkü inceleme tamamlandı." : mentorReminderDue ? "Günlük inceleme hatırlatması: doğrudan grubunu gözden geçir." : open ? `${open} öğrenci için takip gerekiyor.` : `İnceleme hatırlatması ${state.reminders.mentorTime} için ayarlı.`}</p></div><span className="responsibility-status">{reviewed ? <><Check size={16} /> İncelendi</> : "Bekliyor"}</span><Link href={hrefWithUiState("/students", uiSearch)} className="secondary-button">Öğrencileri gözden geçir <ArrowRight size={17} /></Link></section> : null}
   </div>;
 }

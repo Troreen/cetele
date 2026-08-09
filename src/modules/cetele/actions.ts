@@ -1,11 +1,47 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const manualInvitationToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
+const manualInvitationClaim = z.object({
+  token: manualInvitationToken,
+  email: z.email(),
+  password: z.string().min(8).max(72),
+  passwordConfirmation: z.string().min(8).max(72),
+}).refine(({ password, passwordConfirmation }) => password === passwordConfirmation, {
+  message: "Parolalar aynı olmalı.",
+  path: ["passwordConfirmation"],
+});
+
+const INVITATION_LIFETIME_MS = 72 * 60 * 60 * 1000;
+const INVITATION_FAILURE = "Davet bağlantısı geçersiz, kullanılmış veya süresi dolmuş.";
+
+type ManualInvitationClaimResult =
+  | { outcome: "signed-in" }
+  | { outcome: "sign-in-required" }
+  | { outcome: "cleanup-required" };
+
+function applicationOrigin() {
+  const origin = process.env.CETELE_APP_ORIGIN;
+  if (!origin) throw new Error("Davet bağlantısı oluşturulamadı.");
+  const appOrigin = new URL(origin);
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(appOrigin.hostname);
+  if ((appOrigin.protocol !== "https:" && !(appOrigin.protocol === "http:" && loopback))
+    || appOrigin.username || appOrigin.password
+    || appOrigin.pathname !== "/" || appOrigin.search || appOrigin.hash) {
+    throw new Error("Davet bağlantısı oluşturulamadı.");
+  }
+  return appOrigin;
+}
+
+function invitationTokenHash(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export async function signOut() {
   if (process.env.NEXT_PUBLIC_CETELE_DATA_ADAPTER === "supabase") {
@@ -44,25 +80,40 @@ export async function recordFollowUp(input: unknown) {
   if (error) throw new Error(error.message);
 }
 
-export async function inviteDirectStudent(input: unknown) {
-  const parsed = z.object({ email: z.email(), name: z.string().trim().min(2).max(100) }).parse(input);
-  const email = parsed.email.trim().toLowerCase();
-  const name = parsed.name;
+export async function createManualInvitation(input: unknown) {
+  const { name } = z.object({ name: z.string().trim().min(2).max(100) }).parse(input);
   const { user } = await requireUser();
   const admin = createSupabaseAdminClient();
-  const origin = process.env.CETELE_APP_ORIGIN;
-  if (!origin) throw new Error("CETELE_APP_ORIGIN sunucu ayarı eksik.");
-  const appOrigin = new URL(origin);
-  if (!["http:", "https:"].includes(appOrigin.protocol) || appOrigin.pathname !== "/" || appOrigin.search || appOrigin.hash) throw new Error("CETELE_APP_ORIGIN must contain only an HTTP(S) application origin.");
-  const { data: invitation, error: createError } = await admin.from("mentorship_invitations").insert({ mentor_id: user.id, invitee_email: email, invitee_name: name }).select("id").single();
-  if (createError) throw new Error(createError.message);
-  const redirectTo = new URL("/auth/confirm", appOrigin);
-  redirectTo.searchParams.set("invitation", invitation.id);
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: redirectTo.toString(), data: { name, inviting_mentor_id: user.id, invitation_id: invitation.id } });
-  if (error || !data.user) await admin.from("mentorship_invitations").delete().eq("id", invitation.id).eq("mentor_id", user.id);
-  if (error || !data.user) throw new Error(error?.message ?? "Davet oluşturulamadı.");
-  const { error: invitationError } = await admin.from("mentorship_invitations").update({ invited_user_id: data.user.id }).eq("id", invitation.id).eq("mentor_id", user.id).select("id").single();
-  if (invitationError) throw new Error(invitationError.message);
+  const appOrigin = applicationOrigin();
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + INVITATION_LIFETIME_MS).toISOString();
+  const { error } = await admin.from("mentorship_invitations").insert({
+    mentor_id: user.id,
+    invitee_name: name,
+    token_hash: invitationTokenHash(token),
+    expires_at: expiresAt,
+  });
+  if (error) throw new Error("Davet bağlantısı oluşturulamadı.");
+
+  const url = new URL("/invite/accept", appOrigin);
+  url.hash = `token=${encodeURIComponent(token)}`;
+  return { url: url.toString(), expiresAt };
+}
+
+export async function revokeManualInvitation(input: unknown) {
+  const { invitationId } = z.object({ invitationId: z.string().uuid() }).parse(input);
+  const { user } = await requireUser();
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("mentorship_invitations")
+    .update({ cancelled_at: new Date().toISOString() })
+    .eq("id", invitationId)
+    .eq("mentor_id", user.id)
+    .is("accepted_at", null)
+    .is("cancelled_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) throw new Error("Bekleyen davet iptal edilemedi. Lütfen tekrar dene.");
 }
 
 export async function signInWithPassword(input: unknown) {
@@ -72,18 +123,50 @@ export async function signInWithPassword(input: unknown) {
   if (error) throw new Error(error.message);
 }
 
-export async function setAccountPassword(input: unknown) {
-  const { password } = z.object({ password: z.string().min(8) }).parse(input);
-  const { supabase } = await requireUser();
-  const { error } = await supabase.auth.updateUser({ password });
-  if (error) throw new Error(error.message);
-}
+export async function claimManualInvitation(input: unknown): Promise<ManualInvitationClaimResult> {
+  const parsed = manualInvitationClaim.safeParse(input);
+  if (!parsed.success) throw new Error(INVITATION_FAILURE);
 
-export async function acceptMentorshipInvitation(input: unknown) {
-  const { invitationId } = z.object({ invitationId: z.string().uuid() }).parse(input);
-  const { supabase } = await requireUser();
-  const { error } = await supabase.rpc("accept_mentorship_invitation", { p_invitation_id: invitationId });
-  if (error) throw new Error(error.message);
+  const tokenHash = invitationTokenHash(parsed.data.token);
+  const email = parsed.data.email.trim().toLowerCase();
+  const admin = createSupabaseAdminClient();
+  const { data: invitation, error: lookupError } = await admin
+    .from("mentorship_invitations")
+    .select("invitee_name,expires_at,accepted_at,cancelled_at,invited_user_id")
+    .eq("token_hash", tokenHash)
+    .maybeSingle();
+  if (lookupError || !invitation || invitation.accepted_at || invitation.cancelled_at || invitation.invited_user_id || new Date(invitation.expires_at).getTime() <= Date.now()) {
+    throw new Error(INVITATION_FAILURE);
+  }
+
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
+    email,
+    password: parsed.data.password,
+    email_confirm: true,
+    user_metadata: { name: invitation.invitee_name },
+  });
+  if (createError || !created.user) throw new Error(INVITATION_FAILURE);
+
+  const { error: claimError } = await admin.rpc("claim_mentorship_invitation", {
+    p_token_hash: tokenHash,
+    p_user_id: created.user.id,
+  });
+  if (claimError) {
+    let cleanupFailed = false;
+    try {
+      const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
+      cleanupFailed = Boolean(cleanupError);
+    } catch {
+      cleanupFailed = true;
+    }
+    if (cleanupFailed) return { outcome: "cleanup-required" } as const;
+    throw new Error(INVITATION_FAILURE);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: parsed.data.password });
+  if (signInError) return { outcome: "sign-in-required" } as const;
+  return { outcome: "signed-in" } as const;
 }
 
 const definitionInput = z.object({

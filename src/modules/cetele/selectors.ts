@@ -46,6 +46,30 @@ export function recentDates(today: string, count = 7) {
   });
 }
 
+export function currentWeekDates(today: string) {
+  const date = new Date(`${today}T12:00:00Z`);
+  const mondayOffset = (date.getUTCDay() + 6) % 7;
+  date.setUTCDate(date.getUTCDate() - mondayOffset);
+  return Array.from({ length: 7 }, (_, index) => {
+    const weekday = new Date(date);
+    weekday.setUTCDate(date.getUTCDate() + index);
+    return weekday.toISOString().slice(0, 10);
+  });
+}
+
+export function aggregateCompletionRatio(state: CeteleState, studentIds: string[], date = state.today) {
+  const visibleStudents = new Set(studentIds);
+  const assignments = state.assignments.filter((item) => item.status === "active" && visibleStudents.has(item.studentId));
+  const eligible = assignments.filter((assignment) => !state.excuses.some((excuse) =>
+    excuse.studentId === assignment.studentId
+      && excuse.date === date
+      && (excuse.assignmentId === null || excuse.assignmentId === assignment.id)));
+  return {
+    done: eligible.filter((assignment) => completionFor(state, assignment.id, date)).length,
+    total: eligible.length,
+  };
+}
+
 export function completionRatio(state: CeteleState, studentId: string, date = state.today) {
   const assignments = assignmentsFor(state, studentId);
   if (!assignments.length) return { done: 0, total: 0 };

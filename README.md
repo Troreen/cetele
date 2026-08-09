@@ -4,9 +4,9 @@
 
 ## Current status
 
-The complete V1 application surface and domain foundation are implemented. The Next.js application includes invitation/password/sign-in, personal daily tracking, binary and quantitative habits, yesterday correction, per-assignment Week/6 Months history, guides, student personalization roles, mentor group review, Needs Attention, Follow-up with private notes, excuses, branch supervision, private/shared habit definitions, adoption, assignment, reminders, and light/dark themes.
+The complete V1 application surface and domain foundation are implemented. The Next.js application includes manual secure invitation links, student-chosen credentials and sign-in, personal daily tracking, binary and quantitative habits, yesterday correction, per-assignment Week/6 Months history, guides, student personalization roles, mentor group review, Needs Attention, Follow-up with private notes, excuses, branch supervision, private/shared habit definitions, adoption, assignment, reminders, and light/dark themes.
 
-The default `local` data adapter is a deterministic, browser-persisted verification environment. It supports the complete browser journey without claiming production authentication or database enforcement. The production Supabase interface, authenticated Server Actions, schema, indexes, RPCs, and RLS policies live in the application and `supabase/migrations/`; they remain **hosted-unverified** until a real project is connected and the allow/deny identity matrix is exercised.
+The default `local` data adapter is a deterministic, browser-persisted verification environment. It supports the complete browser journey without claiming production authentication or database enforcement. The production Supabase interface, authenticated Server Actions, schema, indexes, RPCs, and RLS policies live in the application and `supabase/migrations/`. On 2026-08-10, the executable hosted matrix passed 134/134 against a disposable project and the complementary manual browser/database matrix passed; see [V1 verification](docs/verification/V1_VERIFICATION.md).
 
 ## Source documents
 

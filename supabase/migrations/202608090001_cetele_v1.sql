@@ -364,7 +364,7 @@ declare v_student uuid; v_timezone text; v_today date; v_attention record; v_rem
 begin
   select a.student_id, p.timezone into v_student, v_timezone
   from public.habit_assignments a join public.profiles p on p.id = a.student_id
-  where a.id = p_assignment_id;
+  where a.id = p_assignment_id and a.status = 'active';
   if v_student is null or v_student <> auth.uid() then raise exception 'Not authorized for assignment'; end if;
   v_today := (now() at time zone v_timezone)::date;
   if p_date not in (v_today, v_today - 1) then raise exception 'Completion date is locked'; end if;
@@ -384,12 +384,27 @@ $$;
 
 create or replace function public.end_habit_assignment(p_assignment_id uuid, p_reason text)
 returns public.assignment_status language plpgsql security definer set search_path = '' as $$
-declare v_student uuid; v_status public.assignment_status;
+declare v_student uuid; v_status public.assignment_status; v_attention record; v_remaining uuid[];
 begin
   select student_id into v_student from public.habit_assignments where id = p_assignment_id and status = 'active' for update;
   if v_student is null or not private.is_direct_mentor(auth.uid(), v_student) then raise exception 'Direct mentor required for assignment correction'; end if;
   select case when exists (select 1 from public.completions where assignment_id = p_assignment_id) then 'ended'::public.assignment_status else 'void'::public.assignment_status end into v_status;
   update public.habit_assignments set status = v_status, ended_at = now(), correction_reason = p_reason where id = p_assignment_id;
+  for v_attention in
+    select id, first_missed_date, second_missed_date
+    from public.attention_items
+    where student_id = v_student and state = 'open' and p_assignment_id = any(contributing_assignment_ids)
+    for update
+  loop
+    v_remaining := public.missed_assignment_ids(v_student, v_attention.first_missed_date, v_attention.second_missed_date);
+    if cardinality(v_remaining) = 0 then
+      update public.attention_items set state = 'invalidated', invalidated_at = now() where id = v_attention.id;
+    else
+      update public.attention_items
+      set trigger_assignment_id = v_remaining[1], contributing_assignment_ids = v_remaining
+      where id = v_attention.id;
+    end if;
+  end loop;
   insert into public.audit_events(actor_id, subject_id, event_type, entity_type, entity_id, details)
   values (auth.uid(), v_student, 'assignment_corrected', 'habit_assignment', p_assignment_id, jsonb_build_object('status', v_status, 'reason', p_reason));
   return v_status;
@@ -527,7 +542,7 @@ begin
     select day.first_date, day.first_date + 1 as second_date, public.missed_assignment_ids(r.student_id, day.first_date, day.first_date + 1) as ids
     from generate_series(
       greatest((now() at time zone student_profile.timezone)::date - 183,
-        coalesce((select min(a.created_at)::date from public.habit_assignments a where a.student_id = r.student_id), (now() at time zone student_profile.timezone)::date - 2)),
+        coalesce((select min(a.created_at at time zone student_profile.timezone)::date from public.habit_assignments a where a.student_id = r.student_id), (now() at time zone student_profile.timezone)::date - 2)),
       (now() at time zone student_profile.timezone)::date - 2,
       interval '1 day'
     ) as generated(first_date)
@@ -634,7 +649,8 @@ grant select on table
   public.attention_items,
   public.followups,
   public.daily_reviews,
-  public.reminder_preferences
+  public.reminder_preferences,
+  public.audit_events
 to authenticated;
 grant insert on table public.habit_definitions to authenticated;
 grant insert, update on table public.assignment_preferences, public.reminder_preferences to authenticated;

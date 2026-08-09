@@ -40,17 +40,19 @@ describe("loadCeteleState assignment visibility", () => {
       definition_id: "definition",
       student_id: "subject",
       assigned_by: "mentor",
+      created_at: "2026-08-02T22:30:00.000Z",
+      ended_at: null,
       target: null,
       assignment_preferences: [],
     };
     const results: Record<string, QueryResult> = {
       profiles: { data: [{ id: "subject", display_name: "Ayşe", timezone: "Europe/Stockholm", group_name: null, theme: "dark" }], error: null },
-      mentorship_invitations: { data: [], error: null },
+      mentorship_invitations: { data: [{ id: "invitation", mentor_id: "mentor", invitee_name: "Selin", expires_at: "2026-08-12T12:00:00.000Z" }], error: null },
       mentorship_relationships: { data: [], error: null },
       habit_definitions: { data: [], error: null },
       habit_assignments: { data: [
         { ...assignment, id: "active", status: "active" },
-        { ...assignment, id: "ended", status: "ended" },
+        { ...assignment, id: "ended", status: "ended", ended_at: "2026-08-08T22:30:00.000Z" },
         { ...assignment, id: "void", status: "void" },
       ], error: null },
       completions: { data: [], error: null },
@@ -68,9 +70,10 @@ describe("loadCeteleState assignment visibility", () => {
 
     const { state } = await loadCeteleState();
 
-    expect(state.assignments.map(({ id, status }) => ({ id, status }))).toEqual([
-      { id: "active", status: "active" },
-      { id: "ended", status: "ended" },
+    expect(state.assignments.map(({ id, status, startedOn, endedOn }) => ({ id, status, startedOn, endedOn }))).toEqual([
+      { id: "active", status: "active", startedOn: "2026-08-03", endedOn: null },
+      { id: "ended", status: "ended", startedOn: "2026-08-03", endedOn: "2026-08-09" },
     ]);
+    expect(state.people.find((person) => person.id === "invitation")).toMatchObject({ invitation: "pending", invitationExpiresAt: "2026-08-12T12:00:00.000Z" });
   });
 });
