@@ -35,7 +35,7 @@ Follow the full [V1 verification contract](docs/verification/V1_VERIFICATION.md)
 
 ### 3. Produce the V1 release candidate
 
-**Status:** ready to publish — local and hosted release gates passed; candidate commit and push pending
+**Status:** complete — candidate `bf7d8ff` and its evidence commit pushed after all local and hosted release gates passed
 
 Reconcile the hosted evidence, local evidence, documentation, and issue state. Close issues #3 and #1 only after their stopping conditions are met.
 
