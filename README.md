@@ -4,9 +4,9 @@
 
 ## Current status
 
-The repository is in the bounded foundation/core-tracking tranche. Product and visual source briefs, durable product context, domain language, workflow configuration, and the initial architecture investigation are being established before the first production tracer bullet.
+The complete V1 application surface and domain foundation are implemented. The Next.js application includes invitation/password/sign-in, personal daily tracking, binary and quantitative habits, yesterday correction, per-assignment Week/6 Months history, guides, student personalization roles, mentor group review, Needs Attention, Follow-up with private notes, excuses, branch supervision, private/shared habit definitions, adoption, assignment, reminders, and light/dark themes.
 
-The first tracer bullet will let an invited user set a password, sign in, view one assigned daily habit, toggle today's completion with persisted state, reload, and inspect that habit's Week history.
+The default `local` data adapter is a deterministic, browser-persisted verification environment. It supports the complete browser journey without claiming production authentication or database enforcement. The production Supabase interface, authenticated Server Actions, schema, indexes, RPCs, and RLS policies live in the application and `supabase/migrations/`; they remain **hosted-unverified** until a real project is connected and the allow/deny identity matrix is exercised.
 
 ## Source documents
 
@@ -18,9 +18,18 @@ The first tracer bullet will let an invited user set a password, sign in, view o
 
 ## Development
 
-Application commands will be added with the Next.js scaffold. The intended baseline is Node.js 22+, npm, a hosted Supabase project for Auth/Postgres/RLS, Vitest, and Playwright.
+Requirements: Node.js 22+ and npm.
 
-No local Supabase stack is currently assumed because the development machine does not have Docker. Never add Supabase secret keys to the repository; use the future `.env.example` as the canonical variable list.
+```powershell
+npm.cmd install
+npm.cmd run dev
+npm.cmd run verify
+npm.cmd run test:e2e
+```
+
+Copy `.env.example` to `.env.local` only when connecting a hosted Supabase project. Keep `NEXT_PUBLIC_CETELE_DATA_ADAPTER=local` until hosted verification passes.
+
+No local Supabase stack is assumed because the development machine does not have Docker. Never add Supabase secret keys to the repository; `.env.example` is the canonical variable list.
 
 ## Product safeguards
 

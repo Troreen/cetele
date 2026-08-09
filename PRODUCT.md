@@ -49,13 +49,17 @@ Success means a student records daily consistency in seconds, a direct mentor un
 - Students control personal icon, accent color, and order; mentors control habit meaning, guide, completion definition, target, and assignment.
 - Shared habits are attributed, same-tree templates. Adoption creates an independent usable version; later source edits do not silently alter assignments.
 - Authorization must be enforced in server and data layers, including database policies where supported, not by hidden UI.
-- Open product decisions: third history range; student-facing anonymous aggregate metrics and minimum anonymity group size; mentor-transfer behavior; edits to locked completion notes; student visibility into Needs Attention; and mistaken-assignment correction.
+- Conservative V1 policy: ship Week and 6 Months only; do not show student-facing peer aggregates; do not support direct-mentor transfer; lock Completion Notes with the day; keep Needs Attention mentor-only; allow a mistaken assignment to be voided only before any Completion exists and otherwise end it with history preserved. Senior intervention is limited to explicit attributable assignment and Follow-up paths.
 
 ## Brand Commitments
 
 The product name is Çetele. Its voice is concise, human, calm, mature, reflective, modest, quietly disciplined, culturally Turkish, and openly spiritual without becoming decorative or preachy. The everyday student experience must feel like “my Çetele,” not a report prepared for surveillance.
 
-Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's simplicity and habit-specific grids, contribution-history readability, and the emotional character of a quiet personal journal are directional references, not identities to copy.
+Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's visual identity is the direct benchmark for the first daily-view surface: near-black canvas, charcoal habit cards, bright per-habit accents, compact icon/name/description rows, rounded-square completion actions, and dense plain contribution tiles.
+
+The daily view should closely reproduce HabitKit's dashboard composition and visual density rather than merely taking loose inspiration from it. Each Habit Assignment keeps its own tile history, accent, icon, useful description, and adjacent square today control. Do not add interior dots to grid cells, oversized circular completion controls, assignment-status copy, legends, daily summaries, or journal-like styling. Çetele retains its own name, original icons and code, mentor-assigned habits, Turkish language, attribution, privacy, accessible names, and non-punitive semantics.
+
+The compact daily mode shows the current week's seven Completion states for every Habit Assignment. Both dark and light palettes are first-class and preserve the same HabitKit-close hierarchy. V1 uses the restrained Lucide line-icon family for navigation, habit categories, theme controls, and status actions; accessible names carry meaning and icons never replace text where ambiguity would result.
 
 ## Evidence on Hand
 
