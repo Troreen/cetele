@@ -65,12 +65,16 @@ export type AttentionItem = {
 
 export type Review = { mentorId: string; date: string; reviewedAt: string };
 export type Excuse = { studentId: string; assignmentId: string | null; date: string; note: string; grantedBy: string };
+export type HabitReminder = { enabled: boolean; time: string };
+export type ReminderPreferences = { habits: Record<string, HabitReminder>; mentorEnabled: boolean; mentorTime: string };
+export type ViewPreferences = { showMonthLabels: boolean; showDayLabels: boolean };
 
 export type CeteleState = {
   version: 1;
   today: string;
   currentUserId: string;
   theme: Theme;
+  viewPreferences: ViewPreferences;
   people: Person[];
   definitions: HabitDefinition[];
   assignments: Assignment[];
@@ -78,5 +82,5 @@ export type CeteleState = {
   attention: AttentionItem[];
   reviews: Review[];
   excuses: Excuse[];
-  reminders: { studentEnabled: boolean; studentTime: string; mentorEnabled: boolean; mentorTime: string };
+  reminders: ReminderPreferences;
 };

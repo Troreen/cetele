@@ -7,7 +7,7 @@ import type { DataAdapter } from "./loader";
 import { persistAction } from "./persist-action";
 import { previousDomainDate } from "./policy";
 
-const STORAGE_KEY = "cetele-v1-state";
+export const CETELE_STORAGE_KEY = "cetele-v1-state-20260811-demo-tree";
 const PERSISTENCE_ERROR = "Değişiklik kaydedilemedi. Lütfen tekrar deneyin.";
 
 export const browserNavigation = {
@@ -34,18 +34,53 @@ export type Action =
   | { type: "revoke-invitation"; invitationId: string }
   | { type: "theme"; theme: Theme }
   | { type: "url-theme"; theme: Theme }
-  | { type: "reminders"; key: "studentEnabled" | "mentorEnabled" | "studentTime" | "mentorTime"; value: boolean | string };
+  | { type: "view-preferences"; showMonthLabels: boolean; showDayLabels: boolean }
+  | { type: "habit-reminder"; assignmentId: string; enabled: boolean; time: string }
+  | { type: "mentor-reminder"; enabled: boolean; time: string };
+
+function normalizePersistedState(state: CeteleState): CeteleState {
+  const reminders = state.reminders as CeteleState["reminders"] & { studentEnabled?: boolean; studentTime?: string };
+  const legacyTime = /^\d{2}:\d{2}$/.test(reminders.studentTime ?? "") ? reminders.studentTime! : "20:30";
+  const habits = Object.fromEntries(
+    state.assignments
+      .filter((assignment) => assignment.studentId === state.currentUserId && assignment.status === "active")
+      .map((assignment) => {
+        const saved = reminders.habits?.[assignment.id];
+        return [assignment.id, {
+          enabled: typeof saved?.enabled === "boolean" ? saved.enabled : reminders.studentEnabled ?? true,
+          time: /^\d{2}:\d{2}$/.test(saved?.time ?? "") ? saved.time : legacyTime,
+        }];
+      }),
+  );
+  return {
+    ...state,
+    viewPreferences: {
+      showMonthLabels: state.viewPreferences?.showMonthLabels ?? true,
+      showDayLabels: state.viewPreferences?.showDayLabels ?? true,
+    },
+    reminders: { habits, mentorEnabled: reminders.mentorEnabled, mentorTime: reminders.mentorTime },
+    completions: state.completions.map((completion) => completion.amount === null || Number.isInteger(completion.amount)
+      ? completion
+      : { ...completion, amount: Math.max(1, Math.round(completion.amount)) }),
+  };
+}
+
+function validCompletionAmount(amount: number | null | undefined) {
+  return amount == null || (Number.isInteger(amount) && amount > 0);
+}
 
 export function reduceCeteleState(state: CeteleState, action: Action): CeteleState {
   switch (action.type) {
-    case "hydrate": return action.state;
+    case "hydrate": return normalizePersistedState(action.state);
     case "toggle-completion": {
+      if (!validCompletionAmount(action.amount)) return state;
       const exists = state.completions.some((item) => item.assignmentId === action.assignmentId && item.date === state.today);
       return { ...state, completions: exists
         ? state.completions.filter((item) => !(item.assignmentId === action.assignmentId && item.date === state.today))
         : [...state.completions, { assignmentId: action.assignmentId, date: state.today, amount: action.amount ?? null, retrospective: false, note: "" }] };
     }
     case "record-completion": {
+      if (!validCompletionAmount(action.amount)) return state;
       const completions = state.completions.filter((item) => !(item.assignmentId === action.assignmentId && item.date === action.date));
       completions.push({ assignmentId: action.assignmentId, date: action.date, amount: action.amount, retrospective: action.date !== state.today, note: action.note });
       const attention = action.date === previousDomainDate(state.today) ? state.attention.map((item) => {
@@ -56,6 +91,7 @@ export function reduceCeteleState(state: CeteleState, action: Action): CeteleSta
       return { ...state, completions, attention };
     }
     case "complete-yesterday": {
+      if (!validCompletionAmount(action.amount)) return state;
       const yesterday = previousDomainDate(state.today);
       const completions = state.completions.filter((item) => !(item.assignmentId === action.assignmentId && item.date === yesterday));
       completions.push({ assignmentId: action.assignmentId, date: yesterday, amount: action.amount, retrospective: true, note: action.note });
@@ -131,7 +167,9 @@ export function reduceCeteleState(state: CeteleState, action: Action): CeteleSta
     case "revoke-invitation": return { ...state, people: state.people.filter((person) => person.id !== action.invitationId || person.invitation !== "pending") };
     case "theme":
     case "url-theme": return { ...state, theme: action.theme };
-    case "reminders": return { ...state, reminders: { ...state.reminders, [action.key]: action.value } };
+    case "view-preferences": return { ...state, viewPreferences: { showMonthLabels: action.showMonthLabels, showDayLabels: action.showDayLabels } };
+    case "habit-reminder": return { ...state, reminders: { ...state.reminders, habits: { ...state.reminders.habits, [action.assignmentId]: { enabled: action.enabled, time: action.time } } } };
+    case "mentor-reminder": return { ...state, reminders: { ...state.reminders, mentorEnabled: action.enabled, mentorTime: action.time } };
   }
 }
 
@@ -139,23 +177,23 @@ type StoreValue = { state: CeteleState; dispatch: React.Dispatch<Action>; reset:
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function CeteleProvider({ children, initialState = fixtureState, adapter = "local", persist = persistAction }: { children: React.ReactNode; initialState?: CeteleState; adapter?: DataAdapter; persist?: typeof persistAction }) {
-  const [state, rawDispatch] = useReducer(reduceCeteleState, initialState);
+  const [state, rawDispatch] = useReducer(reduceCeteleState, initialState, normalizePersistedState);
   const [hydrated, setHydrated] = useState(false);
   const [persistenceError, setPersistenceError] = useState("");
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(CETELE_STORAGE_KEY);
     if (adapter === "local" && raw) rawDispatch({ type: "hydrate", state: JSON.parse(raw) as CeteleState });
     const ready = window.setTimeout(() => setHydrated(true), 0);
     return () => window.clearTimeout(ready);
   }, [adapter]);
-  useLayoutEffect(() => { if (hydrated && adapter === "local") localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }, [adapter, hydrated, state]);
+  useLayoutEffect(() => { if (hydrated && adapter === "local") localStorage.setItem(CETELE_STORAGE_KEY, JSON.stringify(state)); }, [adapter, hydrated, state]);
   useLayoutEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
   const dispatch = useCallback((action: Action) => {
     if (action.type === "url-theme") {
       rawDispatch(action);
     }
     else if (adapter === "local") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(reduceCeteleState(state, action)));
+      localStorage.setItem(CETELE_STORAGE_KEY, JSON.stringify(reduceCeteleState(state, action)));
       rawDispatch(action);
     }
     else {

@@ -16,7 +16,7 @@ The local adapter persists deterministic fixtures in browser storage. It proves 
 
 The disposable hosted project completed the sequential migration postchecks, manual secure-link relationship bootstrap, seed setup, and executable matrix at 134/134 on 2026-08-10. The complementary manual browser/database matrix also passed. Never put passwords, publishable/secret key values, access tokens, refresh tokens, disposable email addresses, or actual invitation links in Git, an issue, a terminal transcript, or verification evidence.
 
-See [the redaction-safe hosted run record](2026-08-09-hosted-v1.md) for the durable evidence boundary.
+See [the redaction-safe hosted run record](2026-08-09-hosted-v1.md) for the original V1 evidence boundary and [the PR #5 hosted recheck](2026-08-11-pr5-hosted-recheck.md) for migration `004` and the expanded 156/156 matrix.
 
 ### 1. Create and configure a disposable project
 

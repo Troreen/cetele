@@ -2,10 +2,11 @@
 
 This file is the authoritative delivery sequence. Product behavior remains authoritative in [`PRODUCT.md`](PRODUCT.md) and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md); GitHub issues hold execution discussion.
 
-## Current truth — 2026-08-10
+## Current truth — 2026-08-11
 
-- **V1 application scope is implemented and locally verified.** On 2026-08-10, the current candidate's `npm.cmd run verify` passed ESLint, generated-route strict TypeScript, 79 Vitest tests, and the production build. `npm.cmd run test:e2e` passed all 9 Playwright Chrome journeys and exited cleanly through its owned Windows server lifecycle.
+- **PR #5 is cleared for merge.** Manual findings MT-001 through MT-015 are fixed with focused regression coverage; Tarik explicitly approved the merge on 2026-08-11. The final local verification and publishing evidence are recorded with the review-hardening commit.
 - **The hosted Supabase gate passed.** Migrations `001`, `002`, and additive upgrade migration `003` were applied to a disposable project. The redaction-safe executable matrix passed 134/134 and the complementary manual browser/database matrix passed across five isolated identities.
+- **Review hardening passed its hosted gate.** Migration `202608100001_pr5_review_hardening.sql` was applied to the disposable project only after Tarik's approval, and the corrected expanded matrix passed 156/156 checks. See the [dated recheck record](docs/verification/2026-08-11-pr5-hosted-recheck.md).
 - The local adapter remains the safe development default. Production authentication, PostgreSQL persistence, manual invitation claiming, and RLS have now been verified against the disposable hosted environment described in the verification record.
 - Keep `NEXT_PUBLIC_CETELE_DATA_ADAPTER=local` until Milestone 2 stops successfully.
 
@@ -41,11 +42,21 @@ Reconcile the hosted evidence, local evidence, documentation, and issue state. C
 
 **Stopping condition:** local verification and the hosted gate both pass on the same candidate revision; no known release-blocking V1 defect remains; `README.md`, this plan, and the verification contract state the final evidence truthfully; the candidate revision is committed and pushed.
 
+### 4. Clear PR #5 manual review findings
+
+**Status:** complete — Tarik approved the repaired behavior; review-hardening migration applied; hosted matrix 156/156
+
+Track every manual finding in [`docs/verification/2026-08-10-pr5-manual-triage.md`](docs/verification/2026-08-10-pr5-manual-triage.md). Reproduce each V1 blocker, add regression coverage at a public seam, fix it, rerun proportionate gates, and have Tarik manually recheck the repaired behavior.
+
+**Stopping condition:** met on 2026-08-11. Tarik explicitly approved the merge, no blocker remained open, the review-hardening migration was then applied, and the expanded hosted matrix passed 156/156.
+
 ## Evidence index
 
 - Scope and invariants: [`PRODUCT.md`](PRODUCT.md), [`CONTEXT.md`](CONTEXT.md), and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md)
 - UX contract: [`DESIGN.md`](DESIGN.md) and the [visual direction](docs/product/cetele_visual_identity_ux_direction_v1.md)
 - Local and hosted gates: [`docs/verification/V1_VERIFICATION.md`](docs/verification/V1_VERIFICATION.md)
+- Current manual review gate: [`docs/verification/2026-08-10-pr5-manual-triage.md`](docs/verification/2026-08-10-pr5-manual-triage.md)
+- PR #5 hosted recheck: [`docs/verification/2026-08-11-pr5-hosted-recheck.md`](docs/verification/2026-08-11-pr5-hosted-recheck.md)
 - Production database contract: [`202608090001_cetele_v1.sql`](supabase/migrations/202608090001_cetele_v1.sql), [`202608090002_manual_secure_invitations.sql`](supabase/migrations/202608090002_manual_secure_invitations.sql), then [`202608090003_post_v1_upgrade_fixes.sql`](supabase/migrations/202608090003_post_v1_upgrade_fixes.sql)
 - Execution tracking: [issue #1](https://github.com/Troreen/cetele/issues/1) and [hosted-verification issue #3](https://github.com/Troreen/cetele/issues/3)
 

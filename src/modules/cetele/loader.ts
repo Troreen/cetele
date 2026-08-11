@@ -16,7 +16,7 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   const { error: reconciliationError } = await supabase.rpc("reconcile_my_attention", {});
   if (reconciliationError) throw new Error(reconciliationError.message);
   const [profilesResult, invitationsResult, relationshipsResult, definitionsResult, assignmentsResult, completionsResult, attentionResult, followupsResult, reviewsResult, excusesResult, remindersResult] = await Promise.all([
-    supabase.from("profiles").select("id,display_name,timezone,group_name,theme"),
+    supabase.from("profiles").select("id,display_name,timezone,group_name,theme,show_month_labels,show_day_labels"),
     supabase.from("mentorship_invitations").select("id,mentor_id,invitee_name,expires_at").is("accepted_at", null).is("cancelled_at", null),
     supabase.from("mentorship_relationships").select("mentor_id,student_id,status").eq("status", "active"),
     supabase.from("habit_definitions").select("*"),
@@ -31,7 +31,7 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   const failure = [profilesResult, invitationsResult, relationshipsResult, definitionsResult, assignmentsResult, completionsResult, attentionResult, followupsResult, reviewsResult, excusesResult, remindersResult].find((result) => result.error)?.error;
   if (failure) throw new Error(failure.message);
   const relationships = (relationshipsResult.data ?? []) as Array<{ mentor_id: string; student_id: string; status: string }>;
-  const profiles = (profilesResult.data ?? []) as Array<{ id: string; display_name: string; timezone: string; group_name: string | null; theme?: "dark" | "light" }>;
+  const profiles = (profilesResult.data ?? []) as Array<{ id: string; display_name: string; timezone: string; group_name: string | null; theme?: "dark" | "light"; show_month_labels?: boolean; show_day_labels?: boolean }>;
   const current = profiles.find((profile) => profile.id === user.id);
   const people: Person[] = profiles.map((profile) => ({
     id: profile.id,
@@ -61,5 +61,6 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   const reviews: Review[] = (reviewsResult.data ?? []).map((item) => ({ mentorId: item.mentor_id, date: item.review_date, reviewedAt: item.reviewed_at }));
   const excuses: Excuse[] = (excusesResult.data ?? []).map((item) => ({ studentId: item.student_id, assignmentId: item.assignment_id, date: item.excuse_date, note: item.note, grantedBy: item.granted_by }));
   const reminder = remindersResult.data;
-  return { adapter: "supabase", state: { version: 1, today: localDate(current?.timezone ?? "Europe/Stockholm"), currentUserId: user.id, theme: current?.theme ?? "dark", people, definitions, assignments, completions, attention, reviews, excuses, reminders: { studentEnabled: reminder?.student_enabled ?? true, studentTime: reminder?.student_time?.slice(0, 5) ?? "20:30", mentorEnabled: reminder?.mentor_enabled ?? true, mentorTime: reminder?.mentor_time?.slice(0, 5) ?? "21:00" } } };
+  const habitReminders = reminder?.habit_reminders && typeof reminder.habit_reminders === "object" ? reminder.habit_reminders : {};
+  return { adapter: "supabase", state: { version: 1, today: localDate(current?.timezone ?? "Europe/Stockholm"), currentUserId: user.id, theme: current?.theme ?? "dark", viewPreferences: { showMonthLabels: current?.show_month_labels ?? true, showDayLabels: current?.show_day_labels ?? true }, people, definitions, assignments, completions, attention, reviews, excuses, reminders: { habits: habitReminders, mentorEnabled: reminder?.mentor_enabled ?? true, mentorTime: reminder?.mentor_time?.slice(0, 5) ?? "21:00" } } };
 }

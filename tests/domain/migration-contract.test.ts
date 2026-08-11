@@ -14,9 +14,18 @@ const upgradeFixesMigration = readFileSync(
   path.resolve(process.cwd(), "supabase/migrations/202608090003_post_v1_upgrade_fixes.sql"),
   "utf8",
 ).replace(/\s+/g, " ").toLowerCase();
-const migration = `${baseMigration} ${manualInvitationsMigration} ${upgradeFixesMigration}`;
+const reviewHardeningMigration = readFileSync(
+  path.resolve(process.cwd(), "supabase/migrations/202608100001_pr5_review_hardening.sql"),
+  "utf8",
+).replace(/\s+/g, " ").toLowerCase();
+const migration = `${baseMigration} ${manualInvitationsMigration} ${upgradeFixesMigration} ${reviewHardeningMigration}`;
 
 describe("hosted V1 migration contract", () => {
+  it("adds assignment-keyed reminder persistence in the unapplied hardening migration", () => {
+    expect(reviewHardeningMigration).toContain("add column if not exists habit_reminders jsonb not null default '{}'::jsonb");
+    expect(reviewHardeningMigration).toContain("jsonb_object_agg(a.id::text");
+    expect(reviewHardeningMigration).toContain("jsonb_typeof(habit_reminders) = 'object'");
+  });
   it("gives authenticated users only the table operations used by the application", () => {
     expect(migration).toMatch(/revoke all privileges on table public\.profiles,[^;]*public\.audit_events from public, anon, authenticated;/);
     expect(migration).toContain("revoke all privileges on sequence public.audit_events_id_seq from public, anon, authenticated;");
@@ -190,5 +199,48 @@ describe("hosted V1 migration contract", () => {
   it("evaluates the authenticated identity through init plans in RLS policies", () => {
     const policies = baseMigration.slice(baseMigration.indexOf("create policy"));
     expect(policies.replaceAll("(select auth.uid())", "")).not.toContain("auth.uid()");
+  });
+
+  it("hardens shared-definition and void-assignment visibility", () => {
+    expect(reviewHardeningMigration).toContain("drop policy if exists definitions_read on public.habit_definitions;");
+    expect(reviewHardeningMigration).toContain("drop policy if exists assignments_read_upward on public.habit_assignments;");
+    expect(reviewHardeningMigration).toMatch(/visibility = 'shared'[^;]*exists \(\s*select 1 from public\.mentorship_relationships r where r\.mentor_id = \(select auth\.uid\(\)\) and r\.status = 'active'\s*\)[^;]*private\.is_in_current_user_tree\(author_id\)/);
+    expect(reviewHardeningMigration).toContain("a.status in ('active', 'ended')");
+    expect(reviewHardeningMigration).toMatch(/create policy assignments_read_upward[^;]*status in \('active', 'ended'\)/);
+  });
+
+  it("limits profile writes and Habit Definition creation to narrow RPCs", () => {
+    expect(reviewHardeningMigration).toContain("revoke update on table public.profiles from authenticated;");
+    expect(reviewHardeningMigration).toContain("add column if not exists show_month_labels boolean not null default true");
+    expect(reviewHardeningMigration).toContain("add column if not exists show_day_labels boolean not null default true");
+    expect(reviewHardeningMigration).toContain("grant update(theme, show_month_labels, show_day_labels) on table public.profiles to authenticated;");
+    expect(reviewHardeningMigration).toContain("revoke insert on table public.habit_definitions from authenticated;");
+    expect(reviewHardeningMigration).toContain("create or replace function public.create_habit_definition(");
+    expect(reviewHardeningMigration).toContain("create or replace function public.adopt_habit_definition(");
+    expect(reviewHardeningMigration).toContain("values ((select auth.uid()), v_creator_name");
+    expect(reviewHardeningMigration).toContain("v_source.id, v_source.author_id, v_source.creator_name");
+  });
+
+  it("rejects binary and fractional amounts and reorders assignment preferences atomically", () => {
+    expect(reviewHardeningMigration).toContain("if v_mode = 'binary' and p_amount is not null then raise exception 'binary completion amount must be null'; end if;");
+    expect(reviewHardeningMigration).toContain("set amount = greatest(1, round(amount))");
+    expect(reviewHardeningMigration).toContain("constraint completions_amount_integer_check");
+    expect(reviewHardeningMigration).toContain("if p_amount is not null and p_amount <> trunc(p_amount) then raise exception 'completion amount must be an integer'; end if;");
+    expect(reviewHardeningMigration).toContain("create or replace function public.reorder_habit_assignments(p_assignment_ids uuid[])");
+    expect(reviewHardeningMigration).toContain("complete active assignment order required");
+    expect(reviewHardeningMigration).toContain("with ordinality");
+    expect(reviewHardeningMigration).toMatch(/on conflict \(assignment_id\) do update set[^;]*sort_order = excluded\.sort_order/);
+  });
+
+  it("resets and explicitly grants only the new authenticated RPC surface", () => {
+    const newRpcs = [
+      "public.create_habit_definition(text, text, text, text, text, text, public.habit_mode, numeric, public.definition_visibility)",
+      "public.adopt_habit_definition(uuid)",
+      "public.reorder_habit_assignments(uuid[])",
+    ];
+    for (const fn of newRpcs) {
+      expect(reviewHardeningMigration).toContain(`revoke all on function ${fn} from public, anon, authenticated, service_role;`);
+      expect(reviewHardeningMigration).toContain(`grant execute on function ${fn} to authenticated;`);
+    }
   });
 });

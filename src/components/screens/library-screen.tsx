@@ -15,7 +15,7 @@ export function LibraryScreen() {
   const [targets, setTargets] = useState<Record<string, number>>({});
   const definitions = state.definitions.filter((item) => tab === "mine" ? item.authorId === state.currentUserId : tab === "shared" ? item.visibility === "shared" && item.authorId !== state.currentUserId : true);
   const direct = directStudents(state).filter((student) => student.invitation === "active");
-  const branch = branchStudents(state).filter((student) => student.invitation === "active" && !direct.some((member) => member.id === student.id));
+  const branch = branchStudents(state).filter((student) => student.invitation === "active" && !direct.some((directStudent) => directStudent.id === student.id));
   const canAuthor = direct.length > 0;
   return <div className="workspace"><SectionHeader title="Alışkanlıklar" description="Anlamı mentor belirler; görünümü öğrenci kendine göre düzenler." actions={canAuthor ? <button className="primary-button" onClick={() => setCreateOpen(true)}><Plus size={18} /> Yeni alışkanlık</button> : undefined} />
     <div className="range-tabs library-tabs" role="tablist" aria-label="Alışkanlık bölümü"><button role="tab" aria-selected={tab === "mine"} className={tab === "mine" ? "active" : ""} onClick={() => setTab("mine")}>Benim alışkanlıklarım</button><button role="tab" aria-selected={tab === "shared"} className={tab === "shared" ? "active" : ""} onClick={() => setTab("shared")}>Paylaşılanlar</button><button role="tab" aria-selected={tab === "assignments"} className={tab === "assignments" ? "active" : ""} onClick={() => setTab("assignments")}>Atamalar</button></div>

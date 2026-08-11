@@ -53,7 +53,7 @@ export async function signOut() {
 }
 
 export async function recordCompletion(input: unknown) {
-  const parsed = z.object({ assignmentId: z.string().uuid(), date: isoDate, amount: z.number().positive().nullable(), note: z.string().max(500).default("") }).parse(input);
+  const parsed = z.object({ assignmentId: z.string().uuid(), date: isoDate, amount: z.number().int().positive().nullable(), note: z.string().max(500).default("") }).parse(input);
   const { supabase } = await requireUser();
   const { error } = await supabase.rpc("record_completion", { p_assignment_id: parsed.assignmentId, p_date: parsed.date, p_amount: parsed.amount, p_note: parsed.note });
   if (error) throw new Error(error.message);
@@ -171,31 +171,54 @@ export async function claimManualInvitation(input: unknown): Promise<ManualInvit
 
 const definitionInput = z.object({
   id: z.string(), name: z.string().min(1).max(100), description: z.string().max(240), guide: z.string().max(4000), why: z.string().max(1000), completionDefinition: z.string().min(1).max(1000), tips: z.string().max(1000), mode: z.enum(["binary", "quantitative"]), defaultTarget: z.number().positive().nullable(), visibility: z.enum(["private", "shared"]),
+}).refine(({ mode, defaultTarget }) => mode === "quantitative" || defaultTarget === null, {
+  message: "İkili alışkanlık hedefi boş olmalı.",
+  path: ["defaultTarget"],
 });
+
+async function requireHabitAuthorContext() {
+  const { supabase, user } = await requireUser();
+  const [responsibilityResult, profileResult] = await Promise.all([
+    supabase.from("mentorship_relationships").select("student_id").eq("mentor_id", user.id).eq("status", "active").limit(1).maybeSingle(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+  ]);
+  if (responsibilityResult.error) throw new Error(responsibilityResult.error.message);
+  if (!responsibilityResult.data) throw new Error("Alışkanlık yalnızca etkin doğrudan öğrencisi olan mentorlar tarafından yönetilebilir.");
+  if (profileResult.error || !profileResult.data) throw new Error(profileResult.error?.message ?? "Mentor profili bulunamadı.");
+  return { supabase, creatorName: profileResult.data.display_name };
+}
 
 export async function createHabitDefinition(input: unknown) {
   const parsed = definitionInput.parse(input);
-  const { supabase, user } = await requireUser();
-  const { data: responsibility, error: responsibilityError } = await supabase.from("mentorship_relationships").select("student_id").eq("mentor_id", user.id).eq("status", "active").limit(1).maybeSingle();
-  if (responsibilityError) throw new Error(responsibilityError.message);
-  if (!responsibility) throw new Error("Alışkanlık yalnızca etkin doğrudan öğrencisi olan mentorlar tarafından oluşturulabilir.");
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("display_name").eq("id", user.id).single();
-  if (profileError) throw new Error(profileError.message);
-  const { error } = await supabase.from("habit_definitions").insert({ author_id: user.id, creator_name: profile.display_name, name: parsed.name, description: parsed.description, guide: parsed.guide, why_it_matters: parsed.why, completion_definition: parsed.completionDefinition, practical_tips: parsed.tips, mode: parsed.mode, default_target: parsed.defaultTarget, visibility: parsed.visibility });
+  const { supabase } = await requireHabitAuthorContext();
+  const { error } = await supabase.rpc("create_habit_definition", {
+    p_name: parsed.name,
+    p_description: parsed.description,
+    p_guide: parsed.guide,
+    p_why_it_matters: parsed.why,
+    p_completion_definition: parsed.completionDefinition,
+    p_practical_tips: parsed.tips,
+    p_mode: parsed.mode,
+    p_default_target: parsed.defaultTarget,
+    p_visibility: parsed.visibility,
+  });
   if (error) throw new Error(error.message);
 }
 
 export async function adoptHabitDefinition(input: unknown) {
   const { definitionId } = z.object({ definitionId: z.string().uuid() }).parse(input);
-  const { supabase, user } = await requireUser();
-  const { data: responsibility, error: responsibilityError } = await supabase.from("mentorship_relationships").select("student_id").eq("mentor_id", user.id).eq("status", "active").limit(1).maybeSingle();
-  if (responsibilityError) throw new Error(responsibilityError.message);
-  if (!responsibility) throw new Error("Alışkanlık yalnızca etkin doğrudan öğrencisi olan mentorlar tarafından kopyalanabilir.");
-  const { data: source, error: readError } = await supabase.from("habit_definitions").select("*").eq("id", definitionId).eq("visibility", "shared").single();
-  if (readError) throw new Error(readError.message);
-  const { data: profile, error: profileError } = await supabase.from("profiles").select("display_name").eq("id", user.id).single();
-  if (profileError) throw new Error(profileError.message);
-  const { error } = await supabase.from("habit_definitions").insert({ author_id: user.id, creator_name: profile.display_name, name: source.name, description: source.description, guide: source.guide, why_it_matters: source.why_it_matters, completion_definition: source.completion_definition, practical_tips: source.practical_tips, resources: source.resources, mode: source.mode, default_target: source.default_target, visibility: "private", source_definition_id: source.id, source_creator_id: source.author_id, source_creator_name: source.creator_name });
+  const { supabase } = await requireHabitAuthorContext();
+  const { error } = await supabase.rpc("adopt_habit_definition", { p_source_definition_id: definitionId });
+  if (error) throw new Error(error.message);
+}
+
+export async function reorderHabitAssignments(input: unknown) {
+  const { orderedIds } = z.object({
+    orderedIds: z.array(z.string().uuid()).min(1).max(200)
+      .refine((ids) => new Set(ids).size === ids.length, "Atama sırası yinelenen kimlik içeremez."),
+  }).parse(input);
+  const { supabase } = await requireUser();
+  const { error } = await supabase.rpc("reorder_habit_assignments", { p_assignment_ids: orderedIds });
   if (error) throw new Error(error.message);
 }
 
@@ -221,9 +244,9 @@ export async function grantExcusedDay(input: unknown) {
 }
 
 export async function saveReminderPreferences(input: unknown) {
-  const parsed = z.object({ studentEnabled: z.boolean(), studentTime: z.string().regex(/^\d{2}:\d{2}$/), mentorEnabled: z.boolean(), mentorTime: z.string().regex(/^\d{2}:\d{2}$/) }).parse(input);
+  const parsed = z.object({ habits: z.record(z.string(), z.object({ enabled: z.boolean(), time: z.string().regex(/^\d{2}:\d{2}$/) })), mentorEnabled: z.boolean(), mentorTime: z.string().regex(/^\d{2}:\d{2}$/) }).parse(input);
   const { supabase, user } = await requireUser();
-  const { error } = await supabase.from("reminder_preferences").upsert({ user_id: user.id, student_enabled: parsed.studentEnabled, student_time: parsed.studentTime, mentor_enabled: parsed.mentorEnabled, mentor_time: parsed.mentorTime });
+  const { error } = await supabase.from("reminder_preferences").upsert({ user_id: user.id, habit_reminders: parsed.habits, mentor_enabled: parsed.mentorEnabled, mentor_time: parsed.mentorTime });
   if (error) throw new Error(error.message);
 }
 
@@ -231,6 +254,13 @@ export async function saveTheme(input: unknown) {
   const { theme } = z.object({ theme: z.enum(["dark", "light"]) }).parse(input);
   const { supabase, user } = await requireUser();
   const { error } = await supabase.from("profiles").update({ theme }).eq("id", user.id);
+  if (error) throw new Error(error.message);
+}
+
+export async function saveViewPreferences(input: unknown) {
+  const parsed = z.object({ showMonthLabels: z.boolean(), showDayLabels: z.boolean() }).parse(input);
+  const { supabase, user } = await requireUser();
+  const { error } = await supabase.from("profiles").update({ show_month_labels: parsed.showMonthLabels, show_day_labels: parsed.showDayLabels }).eq("id", user.id);
   if (error) throw new Error(error.message);
 }
 

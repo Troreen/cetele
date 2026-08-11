@@ -40,7 +40,9 @@ Success means a student records daily consistency in seconds, a direct mentor un
 - V1 habits are daily and assigned by mentors; students do not create tracked habits.
 - Habits are binary by default and may optionally record a quantitative amount.
 - Students may edit today and yesterday only. Older dates are locked.
-- Each habit owns an independent Week and 6 Months history grid. The third longer range remains undecided.
+- The single personal home combines Week and 6 Months history per Habit Assignment; the legacy İlerlemem destination redirects into Today's six-month mode.
+- General appearance settings independently control the month labels above and weekday labels beside six-month calendars.
+- Each active Habit Assignment owns an independent student reminder toggle and time; the mentor's Daily Review reminder remains separate.
 - Two consecutive missed days for the same habit create a student-level Needs Attention item on the third day. A valid retrospective correction may invalidate it; later improvement alone does not.
 - Daily Review and Follow-up are distinct mentor responsibilities with separate histories.
 - Visibility flows upward through the mentorship tree, never sideways. Peer students do not see individual records.
@@ -55,11 +57,11 @@ Success means a student records daily consistency in seconds, a direct mentor un
 
 The product name is Çetele. Its voice is concise, human, calm, mature, reflective, modest, quietly disciplined, culturally Turkish, and openly spiritual without becoming decorative or preachy. The everyday student experience must feel like “my Çetele,” not a report prepared for surveillance.
 
-Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's visual identity is the direct benchmark for the first daily-view surface: near-black canvas, charcoal habit cards, bright per-habit accents, compact icon/name/description rows, rounded-square completion actions, and dense plain contribution tiles.
+Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's visual identity is the direct benchmark for the first daily-view surface: near-black canvas, charcoal habit rows, bright per-habit accents, compact icon/name rows, and dense plain contribution tiles.
 
-The daily view should closely reproduce HabitKit's dashboard composition and visual density rather than merely taking loose inspiration from it. Each Habit Assignment keeps its own tile history, accent, icon, useful description, and adjacent square today control. Do not add interior dots to grid cells, oversized circular completion controls, assignment-status copy, legends, daily summaries, or journal-like styling. Çetele retains its own name, original icons and code, mentor-assigned habits, Turkish language, attribution, privacy, accessible names, and non-punitive semantics.
+The daily view should closely reproduce HabitKit's dashboard composition and visual density rather than merely taking loose inspiration from it. In compact Week mode, each Habit Assignment is one low row containing its icon, truncated name, and seven aligned cells beneath one shared date header; descriptions, streak summaries, information buttons, and a separate Today control are omitted from the row. Today's cell remains the completion surface. Six Months retains the fuller Habit Card, description, information action, Today control, and streak summary. Do not add interior dots to grid cells, oversized circular completion controls, assignment-status copy, legends, daily summaries, or journal-like styling. Çetele retains its own name, original icons and code, mentor-assigned habits, Turkish language, attribution, privacy, accessible names, and non-punitive semantics.
 
-The compact daily mode shows the current week's seven Completion states for every Habit Assignment. Both dark and light palettes are first-class and preserve the same HabitKit-close hierarchy. V1 uses the restrained Lucide line-icon family for navigation, habit categories, theme controls, and status actions; accessible names carry meaning and icons never replace text where ambiguity would result.
+The compact daily mode shows the rolling seven days ending today for every Habit Assignment. It uses a shared date guide and dense fixed-size history cells rather than stretching seven cells across the card. Both dark and light palettes are first-class and preserve the same HabitKit-close hierarchy. V1 uses the restrained Lucide line-icon family for navigation, habit categories, theme controls, and status actions; accessible names carry meaning and icons never replace text where ambiguity would result.
 
 ## Evidence on Hand
 

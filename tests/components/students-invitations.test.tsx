@@ -57,7 +57,7 @@ describe("manual invitation UI", () => {
     expect(screen.getByText("Davet süresi doldu")).toBeVisible();
     expect(screen.getByText("İptal edip yeniden davet et")).toBeVisible();
     const pending = screen.getByText("Bekleyen davet").closest("div");
-    expect(pending ? within(pending).getByText("1") : null).toBeVisible();
+    expect(pending ? within(pending).getByText("0") : null).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /Selin Yılmaz süresi dolan davetini iptal et/ }));
     expect(mocks.dispatch).toHaveBeenCalledWith({ type: "revoke-invitation", invitationId: "expired-invite" });
     expect(screen.getByRole("button", { name: "Öğrenci davet et" })).toBeVisible();

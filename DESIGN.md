@@ -137,7 +137,7 @@ components:
   compact-week-state:
     backgroundColor: "{colors.tile-empty-dark}"
     rounded: "{rounded.week-state}"
-    width: "100%"
+    width: "24px"
 ---
 
 # Design System: Çetele
@@ -155,7 +155,7 @@ Dark and light themes are equal expressions of one system. Both preserve the sam
 - Centered, phone-first app shell with a maximum width of 520px.
 - Dense grid cards with one bright accent assigned to each Habit Assignment.
 - Square completion actions and plain square history states, never circles or interior dots.
-- A compact daily mode that exposes Monday through Sunday for every Habit Assignment.
+- A compact daily mode that exposes the seven consecutive days ending today for every Habit Assignment.
 - Quiet tonal depth, visible keyboard focus, and motion that disappears under reduced-motion preferences.
 - A restrained Lucide line-icon family, selected for V1 and always backed by accessible names or adjacent text.
 
@@ -208,7 +208,7 @@ The primary frame is a centered app shell capped at 520px. It uses 12px horizont
 
 Habit headers use a three-column structure: a 42px icon reservation, flexible copy, and a 48px completion target. On narrow screens up to 430px, app-bar actions may reduce to 44px while habit completion remains 48px. Interactive targets are therefore never smaller than 44px.
 
-The full history grid uses seven rows with dates flowing by column and plain square cells separated by 3px. The compact daily mode shows exactly seven equally sized square states per Habit Assignment, ordered Monday through Sunday, with a 5px gap. Today's state receives an inset outline; a completed state receives the habit color. The two indicators can coexist.
+The full history grid uses seven rows with dates flowing by column and plain square cells separated by 3px. The compact daily mode shows exactly seven 24px square states per Habit Assignment, ordered chronologically and ending today, right-aligned under one shared weekday/date guide with a 5px gap. The cells never stretch to fill the card. Today's state receives an inset outline; a completed state receives the habit color. The two indicators can coexist.
 
 Theme and view choices are state, not separate pages. Switching either must preserve the other in the URL so refresh, history navigation, and shared prototype links remain deterministic. The durable rule is state preservation; the prototype's specific switcher composition is not canonical.
 
@@ -249,6 +249,8 @@ Mentor surfaces widen “The Quiet Ledger” around people and responsibility wi
 - **Shape:** A 12px tonal card with a compact header and the history grid immediately below it.
 - **Header:** A reserved icon area, one-line habit name, one-line useful description, and adjacent 48px completion action.
 - **History:** Plain square empty and completed states. No legends, assignment-status copy, daily summaries, or journal framing inside the card.
+- **Home history:** `Bugün` owns a compact rolling-week list and a labeled six-month Habit Card mode. Two icon-only controls sit in a centered bottom pill, following the retained HabitKit dashboard composition without copying its third mode.
+- **Progress insights:** Current and best streak values sit inside the full six-month Habit Card as one quiet, accessible route to its detailed Habit History. The compact Week row omits them to preserve the approved list density. Do not add a detached history button below the card.
 - **Accent:** One habit color governs the assignment's identity and completed states.
 
 ### Completion Action
@@ -260,16 +262,18 @@ Mentor surfaces widen “The Quiet Ledger” around people and responsibility wi
 
 ### History Grid
 
-- **Structure:** Seven rows, column-flow chronology, dense gaps, and square cells.
+- **Structure:** Seven Monday-first weekday rows, calendar-week columns, dense gaps, and square cells. In the six-month home mode, month labels align above their first visible week and `Sal`, `Per`, and `Cmt` align with rows two, four, and six as in the retained HabitKit detail reference.
 - **Empty:** Uses the theme's `tile-empty` role.
 - **Complete:** Uses the Habit Assignment's accent.
 - **Today:** Uses an inset high-contrast outline without replacing the completion fill.
 - **Accessibility:** The visual grid has an accessible summary and each date/state remains available to assistive technology.
+- **Preferences:** General Settings exposes independent `Ay etiketleri` and `Gün etiketleri` switches. Both default on and hide only their corresponding labels, never the history itself.
 
-### Compact Weekly Card
+### Compact Weekly Row
 
-- **Purpose:** The daily view's compact form shows one complete week of evidence without opening detail.
-- **Structure:** The standard habit header followed by seven equal weekday columns ordered Monday through Sunday.
+- **Purpose:** The daily view's compact form makes every habit and the rolling seven-day record scannable as one aligned list.
+- **Structure:** One shared `Son 7 gün` weekday/date header sits above low rows. Each row contains a 44px icon, one truncated habit name, and seven fixed daily columns ordered oldest to newest and ending today. It omits the description, information action, large Today control, and streak summary.
+- **Interaction:** Today and yesterday retain direct grid editing. Long press and Shift+F10 retain the deliberate settings path without adding a visible ellipsis.
 - **States:** Empty uses `tile-empty`; complete uses the habit accent; today adds an inset outline. Each state remains square.
 
 ### Icon Action Frame
@@ -282,7 +286,7 @@ Mentor surfaces widen “The Quiet Ledger” around people and responsibility wi
 ### Do:
 
 - **Do** keep dark and light themes structurally identical and map components through semantic role tokens.
-- **Do** show Monday through Sunday as seven square states for every Habit Assignment in compact daily mode.
+- **Do** show the rolling seven days ending today as seven square states for every Habit Assignment in compact daily mode.
 - **Do** allow today's outline and the completed fill to appear together.
 - **Do** preserve both theme and view state in the URL when either changes.
 - **Do** maintain 48px completion targets, 44px minimum navigation targets, visible focus, and reduced-motion behavior.

@@ -3,13 +3,17 @@ const mocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
 }));
 
-vi.mock("next/navigation", () => ({ notFound: mocks.notFound }));
+vi.mock("next/navigation", () => ({ notFound: mocks.notFound, redirect: mocks.redirect }));
 vi.mock("@/components/screens/assignment-detail-screen", () => ({ AssignmentDetailScreen: () => null }));
 vi.mock("@/components/screens/student-detail-screen", () => ({ StudentDetailScreen: () => null }));
 
 import AssignmentPage from "@/app/(app)/progress/[assignmentId]/page";
+import ProgressPage from "@/app/(app)/progress/page";
 import StudentPage from "@/app/(app)/students/[studentId]/page";
 
 describe("route input boundaries", () => {
@@ -35,5 +39,10 @@ describe("route input boundaries", () => {
     process.env.NEXT_PUBLIC_CETELE_DATA_ADAPTER = "local";
     await expect(AssignmentPage({ params: Promise.resolve({ assignmentId: "mentor-reading" }) })).resolves.toBeTruthy();
     await expect(StudentPage({ params: Promise.resolve({ studentId: "ayse" }) })).resolves.toBeTruthy();
+  });
+
+  it("redirects the retired Progress landing page into Today's six-month mode", () => {
+    expect(() => ProgressPage()).toThrow("NEXT_REDIRECT");
+    expect(mocks.redirect).toHaveBeenCalledWith("/today?range=six-months");
   });
 });

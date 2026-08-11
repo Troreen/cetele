@@ -1,2 +1,5 @@
-import { ProgressScreen } from "@/components/screens/progress-screen";
-export default function Page() { return <ProgressScreen />; }
+import { redirect } from "next/navigation";
+
+export default function Page() {
+  redirect("/today?range=six-months");
+}

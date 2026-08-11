@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 // @ts-expect-error The executable harness is intentionally plain Node ESM.
 import { errorSummary, loadVerificationConfig, plannedMatrix, redact, REQUIRED_ENV_NAMES } from "../../scripts/verify-hosted-supabase.mjs";
 
@@ -15,6 +16,18 @@ function validEnv() {
 }
 
 describe("hosted verification harness", () => {
+  it("checks non-mentor visibility against the newly created unassigned shared definition", () => {
+    const source = readFileSync("scripts/verify-hosted-supabase.mjs", "utf8");
+    const artifactCreatedAt = source.indexOf("const artifactDefinitionCreated");
+    const visibilityCheckAt = source.indexOf("shared-definition.non-mentor", source.indexOf("async function main"));
+    const assignmentAt = source.indexOf("const assignmentResult");
+
+    expect(artifactCreatedAt).toBeGreaterThan(0);
+    expect(visibilityCheckAt).toBeGreaterThan(artifactCreatedAt);
+    expect(visibilityCheckAt).toBeLessThan(assignmentAt);
+    expect(source).not.toContain('.eq("visibility", "shared").limit(1).maybeSingle()');
+  });
+
   it("fails closed and reports only missing variable names", () => {
     expect(() => loadVerificationConfig({})).toThrow(REQUIRED_ENV_NAMES.join(", "));
   });
@@ -61,6 +74,15 @@ describe("hosted verification harness", () => {
       { resource: "attention.completion-invalidation", actor: "subject", expectation: "allow" },
       { resource: "attention.removal-reopening", actor: "subject", expectation: "allow" },
       { resource: "rpc.record-quantitative.yesterday", actor: "subject", expectation: "allow" },
+      { resource: "rpc.record-binary.amount", actor: "subject", expectation: "deny" },
+      { resource: "shared-definition.non-mentor", actor: "subject", expectation: "deny" },
+      { resource: "profile.non-theme-self-write", actor: "subject", expectation: "deny" },
+      { resource: "definition.direct-insert", actor: "direct", expectation: "deny" },
+      { resource: "rpc.create-definition", actor: "direct", expectation: "allow" },
+      { resource: "rpc.adopt-definition", actor: "direct", expectation: "allow" },
+      { resource: "rpc.reorder-assignments", actor: "subject", expectation: "allow" },
+      { resource: "assignment.void", actor: "subject", expectation: "deny" },
+      { resource: "definition.void-link", actor: "direct", expectation: "deny" },
       { resource: "rpc.assign-subject-intervention", actor: "senior", expectation: "allow" },
       { resource: "rpc.grant-assignment-excuse", actor: "senior", expectation: "deny" },
       { resource: "daily-review.direct", actor: "senior", expectation: "allow" },
@@ -69,6 +91,6 @@ describe("hosted verification harness", () => {
       { resource: "rpc.claim_mentorship_invitation", actor: "anonymous", expectation: "deny" },
       { resource: "rpc.missed_assignment_ids", actor: "anonymous", expectation: "deny" },
     ]));
-    expect(matrix).toHaveLength(134);
+    expect(matrix).toHaveLength(156);
   });
 });

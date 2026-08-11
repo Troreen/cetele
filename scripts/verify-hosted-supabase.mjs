@@ -80,8 +80,9 @@ export function plannedMatrix() {
     ["relationship.direct-subject", "senior", "allow"],
     ["relationship.direct-subject", "peer", "deny"],
     ["relationship.direct-subject", "outsider", "deny"],
-    ["shared-definition.in-tree", "subject", "allow"],
-    ["shared-definition.in-tree", "peer", "allow"],
+    ["shared-definition.mentor", "senior", "allow"],
+    ["shared-definition.non-mentor", "subject", "deny"],
+    ["shared-definition.non-mentor", "peer", "deny"],
     ["shared-definition.cross-tree", "outsider", "deny"],
     ["assignment.subject", "subject", "allow"],
     ["assignment.subject", "direct", "allow"],
@@ -124,6 +125,7 @@ export function plannedMatrix() {
     ["preference.subject-write", "direct", "deny"],
     ["profile.theme-self-write", "subject", "allow"],
     ["profile.theme-cross-write", "outsider", "deny"],
+    ["profile.non-theme-self-write", "subject", "deny"],
     ["reminder.self-write", "subject", "allow"],
     ["reminder.cross-write", "direct", "deny"],
     ["rpc.record-daily-review", "direct", "allow"],
@@ -152,6 +154,18 @@ export function plannedMatrix() {
     ["rpc.record-quantitative.missing-amount", "subject", "deny"],
     ["completion.quantitative-today", "subject", "allow"],
     ["completion.quantitative-yesterday", "subject", "allow"],
+    ["rpc.record-binary.amount", "subject", "deny"],
+    ["definition.direct-insert", "direct", "deny"],
+    ["rpc.create-definition", "direct", "allow"],
+    ["rpc.create-definition", "subject", "deny"],
+    ["rpc.create-definition", "peer", "deny"],
+    ["rpc.create-definition", "outsider", "deny"],
+    ["rpc.adopt-definition", "direct", "allow"],
+    ["rpc.adopt-definition", "subject", "deny"],
+    ["rpc.adopt-definition", "peer", "deny"],
+    ["rpc.adopt-definition", "outsider", "deny"],
+    ["rpc.reorder-assignments", "subject", "allow"],
+    ["rpc.reorder-assignments", "direct", "deny"],
     ["rpc.assign-subject-intervention", "senior", "allow"],
     ["assignment.intervention-attribution", "senior", "allow"],
     ["assignment.intervention", "direct", "allow"],
@@ -159,6 +173,11 @@ export function plannedMatrix() {
     ["assignment.intervention", "subject", "allow"],
     ["assignment.intervention", "peer", "deny"],
     ["assignment.intervention", "outsider", "deny"],
+    ["assignment.void", "subject", "deny"],
+    ["assignment.void", "direct", "deny"],
+    ["assignment.void", "senior", "deny"],
+    ["definition.void-link", "subject", "deny"],
+    ["definition.void-link", "direct", "deny"],
     ["audit.direct-assignment", "direct", "allow"],
     ["audit.direct-assignment", "senior", "allow"],
     ["audit.direct-assignment", "subject", "deny"],
@@ -187,6 +206,7 @@ export function plannedMatrix() {
     ...[
       "record_completion", "record_follow_up", "remove_completion", "end_habit_assignment",
       "assign_habit_definition", "grant_excused_day", "record_daily_review",
+      "create_habit_definition", "adopt_habit_definition", "reorder_habit_assignments",
       "reconcile_my_attention", "claim_mentorship_invitation", "missed_assignment_ids",
       "handle_new_auth_user", "reject_mentorship_cycle",
     ].map((fn) => [`rpc.${fn}`, "anonymous", "deny"]),
@@ -267,6 +287,12 @@ async function main() {
     record(resource, actor, expectation, passed, passed ? "" : result.error?.message ?? `expected ${expectation}, observed ${result.data?.length ?? 0} changed row(s)`);
     return result;
   };
+  const checkInsertPrivilegeDenied = async (resource, actor, table, values) => {
+    const result = await clients[actor].from(table).insert(values).select("*");
+    const passed = result.error?.code === "42501";
+    record(resource, actor, "deny", passed, passed ? "" : result.error?.message ?? "direct insert unexpectedly succeeded");
+    return result;
+  };
   const checkAnonymousTable = async (table) => {
     const result = await anonymous.from(table).select("*").limit(1);
     const passed = Boolean(result.error) || (result.data?.length ?? 0) === 0;
@@ -291,12 +317,6 @@ async function main() {
 
     for (const [actor, expectation] of [["subject", "allow"], ["direct", "allow"], ["senior", "allow"], ["peer", "deny"], ["outsider", "deny"]]) {
       await checkRows("relationship.direct-subject", actor, expectation, "mentorship_relationships", { mentor_id: users.direct.id, student_id: users.subject.id, status: "active" });
-    }
-
-    const shared = await clients.direct.from("habit_definitions").select("id").eq("author_id", users.direct.id).eq("visibility", "shared").limit(1).maybeSingle();
-    if (shared.error || !shared.data) throw new Error("Seed precondition failed: Direct Mentor needs at least one shared Habit Definition.");
-    for (const [actor, expectation, resource] of [["subject", "allow", "shared-definition.in-tree"], ["peer", "allow", "shared-definition.in-tree"], ["outsider", "deny", "shared-definition.cross-tree"]]) {
-      await checkRows(resource, actor, expectation, "habit_definitions", { id: shared.data.id });
     }
 
     const assignments = await clients.subject.from("habit_assignments").select("id,created_at").eq("student_id", users.subject.id).eq("status", "active");
@@ -410,20 +430,27 @@ async function main() {
       await checkRpc("rpc.record-follow-up", actor, "deny", "record_follow_up", { p_attention_id: attentionResult.data.id, p_note: cleanupMarker });
     }
 
-    const subjectTheme = await clients.subject.from("profiles").select("theme").eq("id", users.subject.id).single();
+    const subjectTheme = await clients.subject.from("profiles").select("theme,show_month_labels,show_day_labels").eq("id", users.subject.id).single();
     if (subjectTheme.error) throw new Error(`Theme precondition failed: ${subjectTheme.error.message}`);
     const alternateTheme = subjectTheme.data.theme === "dark" ? "light" : "dark";
-    await checkUpdate("profile.theme-self-write", "subject", "allow", "profiles", { theme: alternateTheme }, { id: users.subject.id });
-    const restoreTheme = await clients.subject.from("profiles").update({ theme: subjectTheme.data.theme }).eq("id", users.subject.id);
+    const alternateProfilePreferences = { theme: alternateTheme, show_month_labels: !subjectTheme.data.show_month_labels, show_day_labels: !subjectTheme.data.show_day_labels };
+    await checkUpdate("profile.theme-self-write", "subject", "allow", "profiles", alternateProfilePreferences, { id: users.subject.id });
+    const restoreTheme = await clients.subject.from("profiles").update({ theme: subjectTheme.data.theme, show_month_labels: subjectTheme.data.show_month_labels, show_day_labels: subjectTheme.data.show_day_labels }).eq("id", users.subject.id);
     if (restoreTheme.error) throw new Error(`Theme restore failed: ${restoreTheme.error.message}`);
-    await checkUpdate("profile.theme-cross-write", "outsider", "deny", "profiles", { theme: alternateTheme }, { id: users.subject.id });
+    await checkUpdate("profile.theme-cross-write", "outsider", "deny", "profiles", alternateProfilePreferences, { id: users.subject.id });
+    const alternateTimezone = subjectProfile.data.timezone === "UTC" ? "Europe/Stockholm" : "UTC";
+    const timezoneWrite = await checkUpdate("profile.non-theme-self-write", "subject", "deny", "profiles", { timezone: alternateTimezone }, { id: users.subject.id });
+    if (!timezoneWrite.error && timezoneWrite.data?.length) {
+      await clients.subject.from("profiles").update({ timezone: subjectProfile.data.timezone }).eq("id", users.subject.id);
+    }
 
-    const reminder = await clients.subject.from("reminder_preferences").select("student_enabled").eq("user_id", users.subject.id).single();
+    const reminder = await clients.subject.from("reminder_preferences").select("habit_reminders").eq("user_id", users.subject.id).single();
     if (reminder.error) throw new Error(`Reminder precondition failed: ${reminder.error.message}`);
-    await checkUpdate("reminder.self-write", "subject", "allow", "reminder_preferences", { student_enabled: !reminder.data.student_enabled }, { user_id: users.subject.id });
-    const restoreReminder = await clients.subject.from("reminder_preferences").update({ student_enabled: reminder.data.student_enabled }).eq("user_id", users.subject.id);
+    const changedHabitReminders = { ...reminder.data.habit_reminders, [assignments.data[0].id]: { enabled: true, time: "19:45" } };
+    await checkUpdate("reminder.self-write", "subject", "allow", "reminder_preferences", { habit_reminders: changedHabitReminders }, { user_id: users.subject.id });
+    const restoreReminder = await clients.subject.from("reminder_preferences").update({ habit_reminders: reminder.data.habit_reminders }).eq("user_id", users.subject.id);
     if (restoreReminder.error) throw new Error(`Reminder restore failed: ${restoreReminder.error.message}`);
-    await checkUpdate("reminder.cross-write", "direct", "deny", "reminder_preferences", { student_enabled: !reminder.data.student_enabled }, { user_id: users.subject.id });
+    await checkUpdate("reminder.cross-write", "direct", "deny", "reminder_preferences", { habit_reminders: changedHabitReminders }, { user_id: users.subject.id });
 
     await checkRpc("rpc.record-daily-review", "direct", "allow", "record_daily_review", {});
     await checkRpc("rpc.record-daily-review", "senior", "allow", "record_daily_review", {});
@@ -436,16 +463,43 @@ async function main() {
 
     const directProfile = await clients.direct.from("profiles").select("display_name").eq("id", users.direct.id).single();
     if (directProfile.error) throw new Error(`Direct Mentor profile precondition failed: ${directProfile.error.message}`);
-    const artifactDefinition = await clients.direct.from("habit_definitions").insert({
+    const createDefinitionArgs = {
+      p_name: cleanupMarker,
+      p_description: "",
+      p_guide: "",
+      p_why_it_matters: "",
+      p_completion_definition: "Hosted verification artifact",
+      p_practical_tips: "",
+      p_mode: "binary",
+      p_default_target: null,
+      p_visibility: "shared",
+    };
+    await checkInsertPrivilegeDenied("definition.direct-insert", "direct", "habit_definitions", {
       author_id: users.direct.id,
-      creator_name: directProfile.data.display_name,
-      name: cleanupMarker,
-      completion_definition: "Hosted verification artifact",
+      creator_name: "Forged attribution",
+      name: `${cleanupMarker}:forged`,
+      completion_definition: "This row must not be inserted directly",
       mode: "binary",
-      visibility: "private",
-    }).select("id").single();
-    if (artifactDefinition.error) throw new Error(`Verification artifact definition failed: ${artifactDefinition.error.message}`);
-    const assignmentResult = await clients.direct.rpc("assign_habit_definition", { p_definition_id: artifactDefinition.data.id, p_student_id: users.subject.id, p_target: null });
+      visibility: "shared",
+    });
+    const artifactDefinition = await clients.direct.rpc("create_habit_definition", createDefinitionArgs);
+    const artifactDefinitionCreated = !artifactDefinition.error && typeof artifactDefinition.data === "string";
+    record("rpc.create-definition", "direct", "allow", artifactDefinitionCreated, artifactDefinition.error?.message ?? "");
+    if (!artifactDefinitionCreated) throw new Error(`Verification artifact definition failed: ${artifactDefinition.error?.message ?? "no definition ID"}`);
+    for (const [actor, expectation, resource] of [["senior", "allow", "shared-definition.mentor"], ["subject", "deny", "shared-definition.non-mentor"], ["peer", "deny", "shared-definition.non-mentor"], ["outsider", "deny", "shared-definition.cross-tree"]]) {
+      await checkRows(resource, actor, expectation, "habit_definitions", { id: artifactDefinition.data });
+    }
+    for (const actor of ["subject", "peer", "outsider"]) {
+      await checkRpc("rpc.create-definition", actor, "deny", "create_habit_definition", createDefinitionArgs);
+    }
+    const adoptedDefinition = await clients.direct.rpc("adopt_habit_definition", { p_source_definition_id: artifactDefinition.data });
+    const adoptionCreated = !adoptedDefinition.error && typeof adoptedDefinition.data === "string";
+    record("rpc.adopt-definition", "direct", "allow", adoptionCreated, adoptedDefinition.error?.message ?? "");
+    if (!adoptionCreated) throw new Error(`Verification adoption failed: ${adoptedDefinition.error?.message ?? "no definition ID"}`);
+    for (const actor of ["subject", "peer", "outsider"]) {
+      await checkRpc("rpc.adopt-definition", actor, "deny", "adopt_habit_definition", { p_source_definition_id: artifactDefinition.data });
+    }
+    const assignmentResult = await clients.direct.rpc("assign_habit_definition", { p_definition_id: artifactDefinition.data, p_student_id: users.subject.id, p_target: null });
     const assignmentId = assignmentResult.data;
     const assignmentCreated = !assignmentResult.error && typeof assignmentId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(assignmentId);
     record("rpc.assign-subject", "direct", "allow", assignmentCreated, assignmentCreated ? "" : assignmentResult.error?.message ?? "RPC did not return a canonical assignment UUID");
@@ -490,6 +544,7 @@ async function main() {
     }
 
     const completionArgs = { p_assignment_id: assignmentId, p_date: today, p_amount: null, p_note: cleanupMarker };
+    await checkRpc("rpc.record-binary.amount", "subject", "deny", "record_completion", { ...completionArgs, p_amount: 1 });
     await checkRpc("rpc.record-completion", "subject", "allow", "record_completion", completionArgs);
     for (const actor of ["direct", "senior", "peer", "outsider"]) {
       await checkRpc("rpc.record-completion", actor, "deny", "record_completion", completionArgs);
@@ -500,7 +555,7 @@ async function main() {
       await checkRows("completion.subject", actor, expectation, "completions", { assignment_id: assignmentId, completion_date: today });
     }
     for (const actor of ["peer", "outsider"]) {
-      await checkRpc("rpc.assign-subject", actor, "deny", "assign_habit_definition", { p_definition_id: shared.data.id, p_student_id: users.subject.id, p_target: null });
+      await checkRpc("rpc.assign-subject", actor, "deny", "assign_habit_definition", { p_definition_id: artifactDefinition.data, p_student_id: users.subject.id, p_target: null });
     }
     await checkRpc("rpc.remove-completion.active-assignment", "subject", "allow", "remove_completion", { p_assignment_id: assignmentId, p_date: today });
     const removedCompletion = await rows(clients.subject, "completions", { assignment_id: assignmentId, completion_date: today });
@@ -508,18 +563,17 @@ async function main() {
     const restoreCompletion = await clients.subject.rpc("record_completion", completionArgs);
     if (restoreCompletion.error) throw new Error(`Verification artifact completion restore failed: ${restoreCompletion.error.message}`);
 
-    const quantitativeDefinition = await clients.direct.from("habit_definitions").insert({
-      author_id: users.direct.id,
-      creator_name: directProfile.data.display_name,
-      name: `${cleanupMarker}:quantitative`,
-      completion_definition: "Hosted quantitative verification artifact",
-      mode: "quantitative",
-      default_target: 5,
-      visibility: "private",
-    }).select("id").single();
-    if (quantitativeDefinition.error) throw new Error(`Quantitative definition failed: ${quantitativeDefinition.error.message}`);
+    const quantitativeDefinition = await clients.direct.rpc("create_habit_definition", {
+      ...createDefinitionArgs,
+      p_name: `${cleanupMarker}:quantitative`,
+      p_completion_definition: "Hosted quantitative verification artifact",
+      p_mode: "quantitative",
+      p_default_target: 5,
+      p_visibility: "private",
+    });
+    if (quantitativeDefinition.error || typeof quantitativeDefinition.data !== "string") throw new Error(`Quantitative definition failed: ${quantitativeDefinition.error?.message ?? "no definition ID"}`);
     const quantitativeAssignment = await clients.direct.rpc("assign_habit_definition", {
-      p_definition_id: quantitativeDefinition.data.id,
+      p_definition_id: quantitativeDefinition.data,
       p_student_id: users.subject.id,
       p_target: 5,
     });
@@ -559,20 +613,29 @@ async function main() {
         && persisted.data?.retrospective === expectedRetrospective;
       record(resource, "subject", "allow", passed, persisted.error?.message ?? (passed ? "" : "persisted quantitative completion did not match amount/retrospective semantics"));
     }
+    const activeAssignmentsForReorder = await clients.subject.from("habit_assignments")
+      .select("id")
+      .eq("student_id", users.subject.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+    if (activeAssignmentsForReorder.error || !activeAssignmentsForReorder.data?.length) {
+      throw new Error(`Assignment reorder precondition failed: ${activeAssignmentsForReorder.error?.message ?? "no active assignments"}`);
+    }
+    const reorderedAssignmentIds = activeAssignmentsForReorder.data.map((item) => item.id);
+    await checkRpc("rpc.reorder-assignments", "subject", "allow", "reorder_habit_assignments", { p_assignment_ids: reorderedAssignmentIds });
+    await checkRpc("rpc.reorder-assignments", "direct", "deny", "reorder_habit_assignments", { p_assignment_ids: reorderedAssignmentIds });
 
     const seniorProfile = await clients.senior.from("profiles").select("display_name").eq("id", users.senior.id).single();
     if (seniorProfile.error) throw new Error(`Senior profile precondition failed: ${seniorProfile.error.message}`);
-    const interventionDefinition = await clients.senior.from("habit_definitions").insert({
-      author_id: users.senior.id,
-      creator_name: seniorProfile.data.display_name,
-      name: `${cleanupMarker}:intervention`,
-      completion_definition: "Hosted intervention verification artifact",
-      mode: "binary",
-      visibility: "private",
-    }).select("id").single();
-    if (interventionDefinition.error) throw new Error(`Intervention definition failed: ${interventionDefinition.error.message}`);
+    const interventionDefinition = await clients.senior.rpc("create_habit_definition", {
+      ...createDefinitionArgs,
+      p_name: `${cleanupMarker}:intervention`,
+      p_completion_definition: "Hosted intervention verification artifact",
+      p_visibility: "private",
+    });
+    if (interventionDefinition.error || typeof interventionDefinition.data !== "string") throw new Error(`Intervention definition failed: ${interventionDefinition.error?.message ?? "no definition ID"}`);
     const intervention = await clients.senior.rpc("assign_habit_definition", {
-      p_definition_id: interventionDefinition.data.id,
+      p_definition_id: interventionDefinition.data,
       p_student_id: users.subject.id,
       p_target: null,
     });
@@ -595,6 +658,12 @@ async function main() {
     }
     const endIntervention = await clients.direct.rpc("end_habit_assignment", { p_assignment_id: intervention.data, p_reason: cleanupMarker });
     if (endIntervention.error || endIntervention.data !== "void") throw new Error(`Intervention correction failed: ${endIntervention.error?.message ?? "expected void"}`);
+    for (const actor of ["subject", "direct", "senior"]) {
+      await checkRows("assignment.void", actor, "deny", "habit_assignments", { id: intervention.data });
+    }
+    for (const actor of ["subject", "direct"]) {
+      await checkRows("definition.void-link", actor, "deny", "habit_definitions", { id: interventionDefinition.data });
+    }
 
     const endResult = await clients.direct.rpc("end_habit_assignment", { p_assignment_id: assignmentId, p_reason: cleanupMarker });
     const assignmentEnded = !endResult.error && endResult.data === "ended";
@@ -615,8 +684,11 @@ async function main() {
       ["record_follow_up", { p_attention_id: attentionResult.data.id, p_note: "" }],
       ["remove_completion", { p_assignment_id: assignmentId, p_date: today }],
       ["end_habit_assignment", { p_assignment_id: assignmentId, p_reason: "" }],
-      ["assign_habit_definition", { p_definition_id: shared.data.id, p_student_id: users.subject.id, p_target: null }],
+      ["assign_habit_definition", { p_definition_id: artifactDefinition.data, p_student_id: users.subject.id, p_target: null }],
       ["grant_excused_day", { p_student_id: users.subject.id, p_assignment_id: assignmentId, p_date: today, p_note: "" }],
+      ["create_habit_definition", createDefinitionArgs],
+      ["adopt_habit_definition", { p_source_definition_id: artifactDefinition.data }],
+      ["reorder_habit_assignments", { p_assignment_ids: [assignmentId] }],
       ["record_daily_review", {}],
       ["reconcile_my_attention", {}],
       ["claim_mentorship_invitation", { p_token_hash: "0".repeat(64), p_user_id: users.subject.id }],

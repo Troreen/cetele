@@ -26,8 +26,8 @@ export function branchStudents(state: CeteleState, mentorId = state.currentUserI
     const id = queue.shift();
     if (!id || visited.has(id)) continue;
     visited.add(id);
-    const member = person(state, id);
-    if (member) result.push(member);
+    const descendant = person(state, id);
+    if (descendant) result.push(descendant);
     queue.push(...directStudents(state, id).map((child) => child.id));
   }
   return result;
@@ -57,13 +57,17 @@ export function currentWeekDates(today: string) {
   });
 }
 
+function isAssignmentExcused(state: CeteleState, assignment: CeteleState["assignments"][number], date: string) {
+  return state.excuses.some((excuse) =>
+    excuse.studentId === assignment.studentId
+      && excuse.date === date
+      && (excuse.assignmentId === null || excuse.assignmentId === assignment.id));
+}
+
 export function aggregateCompletionRatio(state: CeteleState, studentIds: string[], date = state.today) {
   const visibleStudents = new Set(studentIds);
   const assignments = state.assignments.filter((item) => item.status === "active" && visibleStudents.has(item.studentId));
-  const eligible = assignments.filter((assignment) => !state.excuses.some((excuse) =>
-    excuse.studentId === assignment.studentId
-      && excuse.date === date
-      && (excuse.assignmentId === null || excuse.assignmentId === assignment.id)));
+  const eligible = assignments.filter((assignment) => !isAssignmentExcused(state, assignment, date));
   return {
     done: eligible.filter((assignment) => completionFor(state, assignment.id, date)).length,
     total: eligible.length,
@@ -71,7 +75,7 @@ export function aggregateCompletionRatio(state: CeteleState, studentIds: string[
 }
 
 export function completionRatio(state: CeteleState, studentId: string, date = state.today) {
-  const assignments = assignmentsFor(state, studentId);
-  if (!assignments.length) return { done: 0, total: 0 };
-  return { done: assignments.filter((item) => completionFor(state, item.id, date)).length, total: assignments.length };
+  const eligible = assignmentsFor(state, studentId).filter((assignment) => !isAssignmentExcused(state, assignment, date));
+  if (!eligible.length) return { done: 0, total: 0 };
+  return { done: eligible.filter((assignment) => completionFor(state, assignment.id, date)).length, total: eligible.length };
 }

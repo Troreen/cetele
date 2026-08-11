@@ -1,8 +1,7 @@
-import { BookOpen, CalendarDays, CircleUserRound, Eye, Focus, Footprints, Heart, LibraryBig, ListChecks, Moon, Network, Settings, Sun, UserRoundSearch, UsersRound } from "lucide-react";
+import { BookOpen, CalendarDays, CircleUserRound, Eye, Focus, Footprints, Heart, LibraryBig, Moon, Network, Settings, Sun, UserRoundSearch, UsersRound } from "lucide-react";
 
 export const navIcons = {
   today: CalendarDays,
-  progress: ListChecks,
   students: UsersRound,
   attention: Eye,
   library: LibraryBig,
