@@ -29,8 +29,8 @@ Every user recursively below a mentor, including that mentor's group and all des
 _Avoid_: Group, organization
 
 **Mentorship Invitation**:
-A pending offer from a mentor to establish a direct-mentor relationship with a user.
-_Avoid_: Membership invite, group invite
+A pending offer from a mentor to establish a direct-mentor relationship, represented by a revocable single-use link that the mentor delivers privately to the intended student.
+_Avoid_: Email invitation, shared password, account provisioning, membership invite, group invite
 
 ## Habits and records
 

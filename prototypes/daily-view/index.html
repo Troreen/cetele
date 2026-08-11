@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" id="theme-color" content="#050505">
+  <title>Çetele · HabitKit yönlü prototip</title>
+  <style>
+    :root {
+      --canvas: #050505;
+      --card: #1b1b1d;
+      --card-raised: #242426;
+      --tile-empty: #302f32;
+      --ink: #f7f7f7;
+      --muted: #a6a6aa;
+      --secondary: #bdbdc1;
+      --line: #2d2d30;
+      --focus: #ffffff;
+      --control-hover: #1b1b1d;
+      --mode-surface: rgba(42, 42, 44, .96);
+      --mode-border: #4a4a4d;
+      --mode-ink: #bcbcc0;
+      --mode-active: #3a303c;
+      --mode-color: #f164ef;
+      --shadow: rgba(0, 0, 0, .38);
+      --habit-deep-current: var(--habit-deep-dark);
+      --radius: 12px;
+      color-scheme: dark;
+      font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+
+    :root[data-theme="light"] {
+      --canvas: #f6f5f7;
+      --card: #ffffff;
+      --card-raised: #f0eef2;
+      --tile-empty: #e5e2e7;
+      --ink: #1c1b1e;
+      --muted: #6f6b73;
+      --secondary: #66626a;
+      --line: #d8d4da;
+      --focus: #171619;
+      --control-hover: #ece9ee;
+      --mode-surface: rgba(250, 249, 251, .97);
+      --mode-border: #d4d0d6;
+      --mode-ink: #6d6971;
+      --mode-active: #eee3ef;
+      --mode-color: #9b2798;
+      --shadow: rgba(35, 30, 38, .18);
+      --habit-deep-current: var(--habit-deep-light);
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); }
+    button { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    .app-shell { width: min(100%, 520px); margin: 0 auto; padding: 14px 12px 104px; }
+    .app-bar { min-height: 62px; display: grid; grid-template-columns: 48px 1fr auto auto auto; align-items: center; gap: 6px; }
+    .app-title { margin: 0; padding-left: 2px; font-size: 1.2rem; line-height: 1; font-weight: 780; letter-spacing: -.02em; }
+    .icon-button { width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 12px; color: var(--ink); background: transparent; cursor: pointer; }
+    .icon-button:hover { background: var(--control-hover); }
+    .icon-button svg, .habit-icon svg, .mode-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .dashboard { display: grid; gap: 12px; }
+    .habit-card { padding: 9px 9px 10px; border-radius: var(--radius); background: var(--card); }
+    .habit-header { min-height: 50px; display: grid; grid-template-columns: 42px minmax(0, 1fr) 48px; align-items: center; gap: 9px; margin-bottom: 7px; }
+    .habit-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 9px; color: var(--ink); background: var(--habit-deep-current); }
+    .habit-copy { min-width: 0; }
+    .habit-name { margin: 0; overflow: hidden; color: var(--ink); font-size: .94rem; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .habit-description { margin: 3px 0 0; overflow: hidden; color: var(--secondary); font-size: .72rem; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .completion-button { width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 9px; color: var(--ink); background: var(--habit-deep-current); cursor: pointer; transition: background 160ms cubic-bezier(.2,.8,.2,1), transform 160ms cubic-bezier(.2,.8,.2,1); }
+    .completion-button:hover { transform: scale(1.04); }
+    .completion-button[aria-pressed="true"] { background: var(--habit-color); }
+    .completion-button[aria-pressed="true"] { color: #111113; }
+    .completion-button svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .contribution-grid { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); grid-template-rows: repeat(7, minmax(0, 1fr)); grid-auto-flow: column; gap: 3px; }
+    .contribution-cell { aspect-ratio: 1; min-width: 0; border-radius: 2px; background: var(--tile-empty); }
+    .contribution-cell.done { background: var(--habit-color); }
+    .contribution-cell.today { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .58); }
+
+    .month-dashboard { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .month-card { min-width: 0; padding: 9px; border-radius: var(--radius); background: var(--card); }
+    .month-card .habit-header { grid-template-columns: 36px minmax(0, 1fr) 44px; min-height: 44px; gap: 7px; margin-bottom: 9px; }
+    .month-card .habit-icon { width: 36px; height: 36px; border-radius: 8px; }
+    .month-card .completion-button { width: 44px; height: 44px; border-radius: 8px; }
+    .month-card .habit-description { display: none; }
+    .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+    .month-cell { aspect-ratio: 1; display: grid; place-items: center; border-radius: 3px; color: #8f8f93; background: var(--tile-empty); font-size: .58rem; font-weight: 650; }
+    .month-cell.done { color: #111; background: var(--habit-color); }
+    .month-cell.blank { background: transparent; }
+    .month-cell.today { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .76); }
+
+    .compact-dashboard { display: grid; gap: 8px; }
+    .compact-card { min-height: 116px; padding: 8px 9px 10px; border-radius: var(--radius); background: var(--card); }
+    .compact-main { display: grid; grid-template-columns: 42px minmax(0, 1fr) 48px; align-items: center; gap: 9px; }
+    .compact-card .habit-icon { width: 42px; height: 42px; }
+    .week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; margin-top: 8px; }
+    .week-day { display: grid; justify-items: center; gap: 4px; color: var(--muted); font-size: .6rem; font-weight: 650; }
+    .week-cell { width: 100%; aspect-ratio: 1; border-radius: 4px; background: var(--tile-empty); }
+    .week-cell.done { background: var(--habit-color); }
+    .week-cell.today { box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+    .mode-switcher { position: fixed; left: 50%; bottom: 18px; z-index: 10; width: min(calc(100% - 32px), 250px); height: 58px; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; padding: 5px; transform: translateX(-50%); border: 1px solid var(--mode-border); border-radius: 29px; background: var(--mode-surface); box-shadow: 0 12px 26px var(--shadow); }
+    .mode-button { height: 48px; display: grid; place-items: center; border: 0; border-radius: 24px; color: var(--mode-ink); background: transparent; cursor: pointer; }
+    .mode-button.active { color: var(--mode-color); background: var(--mode-active); }
+    .mode-button svg { width: 21px; height: 21px; }
+
+    @media (max-width: 430px) {
+      .app-shell { padding-inline: 8px; }
+      .app-bar { grid-template-columns: 44px 1fr 44px 44px 44px; }
+      .icon-button { width: 44px; height: 44px; }
+      .contribution-grid { gap: 2px; }
+      .month-dashboard { gap: 7px; }
+      .month-card { padding: 7px; }
+      .month-card .habit-header { grid-template-columns: 32px minmax(0, 1fr) 44px; gap: 5px; }
+      .month-card .habit-icon { width: 32px; height: 32px; }
+      .month-card .completion-button { width: 44px; height: 44px; }
+      .month-card .habit-name { font-size: .72rem; }
+      .month-grid { gap: 2px; }
+      .month-cell { font-size: .5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <!--
+  THESIS: Çetele uses HabitKit's grid-first dashboard almost literally: compact habit header, dense plain contribution tiles, and a colored square completion action; it refuses added journal styling and decorative tile marks.
+  OWN-WORLD: HabitKit-close dark and light palettes, compact cards, bright per-habit colors, tiny square tiles, restrained system typography, provisional monochrome outline icons, and one floating three-mode switcher.
+  STORY: The user opens directly onto all Habit Assignments, reads the habit name and useful description, scans the grid, and checks today without leaving the card.
+  FIRST VIEWPORT: The compact Çetele app bar and multiple grid cards fill the phone viewport; compact mode exposes the current seven-day week on every row without opening detail.
+  FORM: Close visual adaptation of the official HabitKit dashboard, with Çetele branding, Turkish content, original SVG icons, and mentor-controlled habit data.
+  FINISH: user rejection supersedes the previous reviewed candidate; this replacement remains a prototype until the user approves its direction.
+  -->
+  <p class="sr-only" id="prototype-status" aria-live="polite">Prototip, örnek veriler</p>
+  <div id="app"></div>
+
+  <script>
+    const variants = { A: "Pano", B: "Ay", C: "Kompakt" };
+    const palettes = {
+      pink: { color: "#f164ef", deepDark: "#4a284a", deepLight: "#f6dff5" },
+      blue: { color: "#55a7ff", deepDark: "#233d56", deepLight: "#dcecff" },
+      green: { color: "#3ed68b", deepDark: "#203f32", deepLight: "#d9f3e6" },
+      orange: { color: "#ff913f", deepDark: "#4b3326", deepLight: "#ffe6d3" }
+    };
+
+    const historyFor = (seed) => Array.from({ length: 210 }, (_, index) => {
+      const week = Math.floor(index / 7);
+      const day = index % 7;
+      return ((index * seed + week * 3 + day * 2) % 13) < (seed + 5);
+    });
+
+    const habits = [
+      { id: "sabah", title: "Sabah duası", description: "Güne sakin bir başlangıç", icon: "sun", palette: "pink", done: false, history: historyFor(3) },
+      { id: "okuma", title: "Kitap okuma", description: "Her gün en az 15 dakika", icon: "book", palette: "blue", done: true, history: historyFor(4) },
+      { id: "yuruyus", title: "Yürüyüş", description: "Açık havada günlük yürüyüş", icon: "walk", palette: "green", done: false, history: historyFor(2) },
+      { id: "tefekkur", title: "Tefekkür", description: "Günü sessizce değerlendir", icon: "spark", palette: "orange", done: true, history: historyFor(5) }
+    ];
+    habits.forEach(habit => { habit.history[209] = habit.done; });
+
+    const app = document.querySelector("#app");
+    const status = document.querySelector("#prototype-status");
+    const checkIcon = () => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>`;
+    // PROTOTYPE ONLY: these inline symbols establish placement and weight; final icons require a dedicated selection pass.
+    const icon = (name) => {
+      const paths = {
+        settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/>',
+        stats: '<path d="M5 20V10M10 20V4M15 20v-7M20 20V7"/>',
+        plus: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+        sun: '<circle cx="12" cy="12" r="3.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/>',
+        book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a2 2 0 0 1 2 2v15a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H15a2 2 0 0 0-2 2v15a2 2 0 0 1 2-2h2.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
+        walk: '<circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M12 15l4 3 1 4M9 12l-4 3"/>',
+        spark: '<path d="m12 2 1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6z"/>',
+        dashboard: '<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>',
+        month: '<path d="M5 4h14v16H5zM8 2v4M16 2v4M5 8h14M9 12h.01M13 12h.01M17 12h.01M9 16h.01M13 16h.01"/>',
+        list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+        theme: '<path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/>'
+      };
+      return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
+    };
+
+    const styleFor = (habit) => `--habit-color:${palettes[habit.palette].color};--habit-deep-dark:${palettes[habit.palette].deepDark};--habit-deep-light:${palettes[habit.palette].deepLight}`;
+    const completionButton = (habit) => `<button class="completion-button" data-action="toggle" data-id="${habit.id}" aria-label="${habit.title}: ${habit.done ? "bugünkü tamamlamayı kaldır" : "bugün tamamla"}" aria-pressed="${habit.done}">${checkIcon()}</button>`;
+    const habitHeader = (habit) => `<div class="habit-header"><span class="habit-icon">${icon(habit.icon)}</span><div class="habit-copy"><h2 class="habit-name">${habit.title}</h2><p class="habit-description">${habit.description}</p></div>${completionButton(habit)}</div>`;
+    const grid = (habit) => `<div class="contribution-grid" role="img" aria-label="${habit.title}: son 30 haftanın tamamlama ızgarası">${habit.history.map((done, index) => `<span class="contribution-cell ${done ? "done" : ""} ${index === 209 ? "today" : ""}" aria-label="${index === 209 ? "Bugün" : `${209 - index} gün önce`}: ${done ? "tamamlandı" : "tamamlanmadı"}"></span>`).join("")}</div>`;
+    const appBar = (theme) => `<header class="app-bar"><button class="icon-button" aria-label="Ayarlar">${icon("settings")}</button><h1 class="app-title">Çetele</h1><button class="icon-button" data-action="theme" aria-label="${theme === "dark" ? "Açık temaya geç" : "Koyu temaya geç"}">${icon("theme")}</button><button class="icon-button" aria-label="İstatistikler">${icon("stats")}</button><button class="icon-button" aria-label="Ekle">${icon("plus")}</button></header>`;
+
+    const dashboard = () => `<main class="dashboard">${habits.map(habit => `<section class="habit-card" style="${styleFor(habit)}">${habitHeader(habit)}${grid(habit)}</section>`).join("")}</main>`;
+    const monthCells = (habit) => {
+      const cells = Array.from({ length: 5 }, () => '<span class="month-cell blank" aria-hidden="true"></span>');
+      for (let day = 1; day <= 31; day += 1) {
+        const done = day <= 8 && habit.history[201 + day];
+        cells.push(`<span class="month-cell ${done ? "done" : ""} ${day === 8 ? "today" : ""}" aria-label="${day} Ağustos: ${day > 8 ? "henüz gelmedi" : done ? "tamamlandı" : "tamamlanmadı"}">${day}</span>`);
+      }
+      while (cells.length < 42) cells.push('<span class="month-cell blank" aria-hidden="true"></span>');
+      return cells.join("");
+    };
+    const monthDashboard = () => `<main class="month-dashboard">${habits.map(habit => `<section class="month-card" style="${styleFor(habit)}">${habitHeader(habit)}<div class="month-grid" role="img" aria-label="${habit.title}: Ağustos ayı">${monthCells(habit)}</div></section>`).join("")}</main>`;
+    const compactWeek = (habit) => {
+      const labels = ["P", "S", "Ç", "P", "C", "C", "P"];
+      return `<div class="week-strip" role="img" aria-label="${habit.title}: bu haftanın tamamlamaları">${habit.history.slice(-7).map((done, index) => `<span class="week-day"><span aria-hidden="true">${labels[index]}</span><span class="week-cell ${done ? "done" : ""} ${index === 6 ? "today" : ""}" aria-label="${index === 6 ? "Bugün" : labels[index]}: ${done ? "tamamlandı" : "tamamlanmadı"}"></span></span>`).join("")}</div>`;
+    };
+    const compactDashboard = () => `<main class="compact-dashboard">${habits.map(habit => `<section class="compact-card" style="${styleFor(habit)}"><div class="compact-main"><span class="habit-icon">${icon(habit.icon)}</span><div class="habit-copy"><h2 class="habit-name">${habit.title}</h2><p class="habit-description">${habit.description}</p></div>${completionButton(habit)}</div>${compactWeek(habit)}</section>`).join("")}</main>`;
+    const modeSwitcher = (active) => `<nav class="mode-switcher" aria-label="Görünüm modu"><button class="mode-button ${active === "A" ? "active" : ""}" data-action="variant" data-variant="A" aria-label="Pano görünümü" aria-current="${active === "A" ? "page" : "false"}">${icon("dashboard")}</button><button class="mode-button ${active === "B" ? "active" : ""}" data-action="variant" data-variant="B" aria-label="Ay görünümü" aria-current="${active === "B" ? "page" : "false"}">${icon("month")}</button><button class="mode-button ${active === "C" ? "active" : ""}" data-action="variant" data-variant="C" aria-label="Kompakt görünüm" aria-current="${active === "C" ? "page" : "false"}">${icon("list")}</button></nav>`;
+
+    const getVariant = () => {
+      const requested = new URLSearchParams(location.search).get("variant")?.toUpperCase();
+      return variants[requested] ? requested : "A";
+    };
+    const getTheme = () => new URLSearchParams(location.search).get("theme") === "light" ? "light" : "dark";
+    function render() {
+      const variant = getVariant();
+      const theme = getTheme();
+      document.documentElement.dataset.theme = theme;
+      document.querySelector("#theme-color").content = theme === "light" ? "#f6f5f7" : "#050505";
+      app.innerHTML = `<div class="app-shell">${appBar(theme)}${variant === "A" ? dashboard() : variant === "B" ? monthDashboard() : compactDashboard()}</div>${modeSwitcher(variant)}`;
+      const remaining = habits.filter(habit => !habit.done).length;
+      status.textContent = `Prototip, örnek veriler. Bugün ${remaining} alışkanlık kaldı.`;
+    }
+    function setVariant(variant) {
+      const url = new URL(location.href);
+      url.searchParams.set("variant", variant);
+      history.replaceState({}, "", url);
+      render();
+    }
+    app.addEventListener("click", (event) => {
+      const control = event.target.closest("[data-action]");
+      if (!control) return;
+      if (control.dataset.action === "variant") setVariant(control.dataset.variant);
+      if (control.dataset.action === "theme") {
+        const url = new URL(location.href);
+        url.searchParams.set("theme", getTheme() === "dark" ? "light" : "dark");
+        history.replaceState({}, "", url);
+        render();
+      }
+      if (control.dataset.action === "toggle") {
+        const habit = habits.find(item => item.id === control.dataset.id);
+        habit.done = !habit.done;
+        habit.history[209] = habit.done;
+        render();
+      }
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const keys = Object.keys(variants);
+        const current = keys.indexOf(getVariant());
+        setVariant(keys[(current + (event.key === "ArrowRight" ? 1 : -1) + keys.length) % keys.length]);
+      }
+    });
+    window.addEventListener("popstate", render);
+    render();
+  </script>
+</body>
+</html>
