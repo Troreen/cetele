@@ -16,8 +16,8 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   const { error: reconciliationError } = await supabase.rpc("reconcile_my_attention", {});
   if (reconciliationError) throw new Error(reconciliationError.message);
   const [profilesResult, invitationsResult, relationshipsResult, definitionsResult, assignmentsResult, completionsResult, attentionResult, followupsResult, reviewsResult, excusesResult, remindersResult] = await Promise.all([
-    supabase.from("profiles").select("id,display_name,timezone,group_name,theme,show_month_labels,show_day_labels"),
-    supabase.from("mentorship_invitations").select("id,mentor_id,invitee_name,expires_at").is("accepted_at", null).is("cancelled_at", null),
+    supabase.from("profiles").select("id,alias,timezone,group_name,theme,show_month_labels,show_day_labels"),
+    supabase.from("mentorship_invitations").select("id,mentor_id,expires_at").is("accepted_at", null).is("revoked_at", null),
     supabase.from("mentorship_relationships").select("mentor_id,student_id,status").eq("status", "active"),
     supabase.from("habit_definitions").select("*"),
     supabase.from("habit_assignments").select("*,assignment_preferences(icon,accent,sort_order)").in("status", ["active", "ended"]),
@@ -31,19 +31,19 @@ export async function loadCeteleState(): Promise<{ state: CeteleState; adapter: 
   const failure = [profilesResult, invitationsResult, relationshipsResult, definitionsResult, assignmentsResult, completionsResult, attentionResult, followupsResult, reviewsResult, excusesResult, remindersResult].find((result) => result.error)?.error;
   if (failure) throw new Error(failure.message);
   const relationships = (relationshipsResult.data ?? []) as Array<{ mentor_id: string; student_id: string; status: string }>;
-  const profiles = (profilesResult.data ?? []) as Array<{ id: string; display_name: string; timezone: string; group_name: string | null; theme?: "dark" | "light"; show_month_labels?: boolean; show_day_labels?: boolean }>;
+  const profiles = (profilesResult.data ?? []) as Array<{ id: string; alias: string; timezone: string; group_name: string | null; theme?: "dark" | "light"; show_month_labels?: boolean; show_day_labels?: boolean }>;
   const current = profiles.find((profile) => profile.id === user.id);
   const people: Person[] = profiles.map((profile) => ({
     id: profile.id,
-    name: profile.display_name,
-    initials: profile.display_name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+    name: profile.alias,
+    initials: profile.alias.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
     mentorId: relationships.find((relationship) => relationship.student_id === profile.id)?.mentor_id ?? null,
     invitation: "active",
     groupName: profile.group_name ?? undefined,
   }));
   for (const invitation of invitationsResult.data ?? []) {
     if (people.some((entry) => entry.id === invitation.id)) continue;
-    people.push({ id: invitation.id, name: invitation.invitee_name, initials: invitation.invitee_name.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase(), mentorId: invitation.mentor_id, invitation: "pending", invitationExpiresAt: invitation.expires_at });
+    people.push({ id: invitation.id, name: "Talep edilmemiş davet", initials: "D", mentorId: invitation.mentor_id, invitation: "pending", invitationExpiresAt: invitation.expires_at });
   }
   const definitions: HabitDefinition[] = (definitionsResult.data ?? []).map((item) => ({ id: item.id, authorId: item.author_id, creatorName: item.creator_name, name: item.name, description: item.description, guide: item.guide, why: item.why_it_matters, completionDefinition: item.completion_definition, tips: item.practical_tips, mode: item.mode, defaultTarget: item.default_target, visibility: item.visibility, sourceAuthor: item.source_creator_name ?? undefined }));
   const assignments: Assignment[] = (assignmentsResult.data ?? [])

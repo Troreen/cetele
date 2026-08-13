@@ -16,7 +16,7 @@ function authorClient() {
   const responsibilityEqStatus = vi.fn(() => ({ limit: responsibilityLimit }));
   const responsibilityEqMentor = vi.fn(() => ({ eq: responsibilityEqStatus }));
   const responsibilitySelect = vi.fn(() => ({ eq: responsibilityEqMentor }));
-  const profileSingle = vi.fn().mockResolvedValue({ data: { display_name: "Mert Demir" }, error: null });
+  const profileSingle = vi.fn().mockResolvedValue({ data: { alias: "Mert" }, error: null });
   const profileEq = vi.fn(() => ({ single: profileSingle }));
   const profileSelect = vi.fn(() => ({ eq: profileEq }));
   const from = vi.fn((table: string) => table === "profiles" ? { select: profileSelect } : { select: responsibilitySelect });

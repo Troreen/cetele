@@ -84,22 +84,20 @@ describe("V1 history and mentor aggregate surfaces", () => {
     }
   });
 
-  it("keeps Junior Mentor responsibility compact without repeating explanatory copy", () => {
+  it("does not reveal a direct student's mentees to their mentor", () => {
     render(<CeteleProvider><StudentDetailScreen studentId="ayse" /></CeteleProvider>);
 
-    const responsibility = screen.getByRole("region", { name: "Mentor sorumluluğu" });
-    expect(within(responsibility).queryByText(/sıradan sorumlusudur/)).not.toBeInTheDocument();
-    expect(within(responsibility).queryByText("Sorumlu mentor: Yunus")).not.toBeInTheDocument();
-    expect(within(responsibility).getByRole("link", { name: "Ilyas ayrıntıları" })).toHaveAttribute("href", "/students/junior");
-    expect(within(responsibility).getAllByRole("article")).toHaveLength(6);
-    expect(within(responsibility).getAllByLabelText(/son 6 gün/)).toHaveLength(12);
+    expect(screen.queryByRole("region", { name: "Mentor sorumluluğu" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Ilyas")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deniz")).not.toBeInTheDocument();
   });
 
-  it("returns a nested student to their Direct Mentor instead of the top-level student list", () => {
+  it("explicitly denies a higher mentor's nested-student route", () => {
     window.history.replaceState(null, "", "/students/deniz?theme=light&range=week");
     render(<CeteleProvider><StudentDetailScreen studentId="deniz" /></CeteleProvider>);
 
-    expect(screen.getByRole("link", { name: "Yunus grubuna dön" })).toHaveAttribute("href", "/students/ayse?theme=light&range=week");
+    expect(screen.getByRole("heading", { name: "Öğrenci bulunamadı" })).toBeVisible();
+    expect(screen.queryByText("Deniz")).not.toBeInTheDocument();
   });
 
   it("preserves theme and range in Today and Attention workflow links", () => {
@@ -113,13 +111,12 @@ describe("V1 history and mentor aggregate surfaces", () => {
     expect(screen.getByRole("link", { name: "Yunus kaydını aç" })).toHaveAttribute("href", "/students/ayse?theme=light&range=six-months");
   });
 
-  it("shows only aggregate direct-group and branch completion", () => {
+  it("shows only the direct-group aggregate and no branch aggregate", () => {
     render(<CeteleProvider initialState={{ ...fixtureState, today: "2026-08-08" }}><NetworkScreen /></CeteleProvider>);
-    const summary = screen.getByLabelText("Bugünkü grup ve kol özeti");
-    expect(within(summary).getByText("Doğrudan grup")).toBeVisible();
+    const summary = screen.getByLabelText("Bugünkü doğrudan grup özeti");
+    expect(screen.getByRole("heading", { name: "Doğrudan grup" })).toBeVisible();
     expect(within(summary).getByText("%67")).toBeVisible();
-    expect(within(summary).getByText("Tüm kol")).toBeVisible();
-    expect(within(summary).getByText("%19")).toBeVisible();
+    expect(within(summary).queryByText("Tüm kol")).not.toBeInTheDocument();
     expect(summary).not.toHaveTextContent("Yusuf");
   });
 });

@@ -14,24 +14,26 @@ Delegated baseline: strict TypeScript with React and Next.js App Router; Postgre
 
 The primary user is a Turkish-speaking person recording mentor-assigned daily habits, usually on a phone and often in a brief daily moment. They need to understand what remains and record honest progress in seconds while feeling that the record belongs to them.
 
-The same account may also mentor any number of direct students. In that role, the user needs to scan the group, notice who needs attention, record that review happened, and separately record attributable follow-up. Senior mentors supervise the branch without replacing the direct mentor's ordinary responsibility.
+The same account may also mentor any number of direct students. In that role, the user needs to scan the direct group, notice who needs attention, record that review happened, and separately record attributable follow-up. Indirect mentors receive no personal or accountability visibility by virtue of ancestry.
 
 ## Product Purpose
 
-Çetele is a daily habit accountability system for spiritual mentorship networks. It makes personal consistency visible over time through one history grid per habit, while giving each mentor the minimum hierarchical visibility needed to notice, review, and follow up responsibly.
+Çetele is a daily habit accountability system for spiritual mentorship relationships. It makes personal consistency visible over time through one history grid per habit, while giving a Direct Mentor the minimum visibility needed to notice, review, and follow up responsibly.
 
-Success means a student records daily consistency in seconds, a direct mentor understands who needs attention without opening every profile, and a senior mentor can see whether delegated review and follow-up responsibilities are being fulfilled.
+Success means a student records daily consistency in seconds and a Direct Mentor understands which Direct Students need attention without opening every profile.
 
 ## Positioning
 
-Çetele combines a personal-first daily habit record with delegated accountability that follows a one-direct-mentor tree upward: the student experiences self-accounting, while responsibility and carefully bounded visibility remain attributable throughout the hierarchy.
+Çetele combines a personal-first daily habit record with accountability inside one Direct Mentor relationship: the student experiences self-accounting while narrowly bounded visibility supports a trusted mentor without spreading personal records through the hierarchy.
 
 ## Operating Context
 
 - Daily completion is primarily mobile; historical review and mentorship views must remain first-class on desktop.
 - All end-user UI and assistive labels use natural Turkish.
 - A user may be a student and mentor at the same time; groups and branches derive from the mentorship tree rather than separate memberships.
-- A mentor creates a revocable, expiring, single-use invitation link and delivers it privately outside Çetele. The invitee chooses their own email and password when claiming the link; mentors and admins never create or share student passwords.
+- Account creation is invite-only. An admin may distribute a revocable, expiring, limited-use Access Code for independent account creation; a mentor may distribute a revocable, expiring, single-use Mentorship Invitation that establishes one Direct Mentor relationship.
+- Çetele does not request legal names. The invitee chooses a non-unique Alias, private verified email, and password; the email remains inside Supabase Auth and mentors or admins never create or share user passwords.
+- Account setup separates Terms Acceptance, the Privacy Notice, Core Tracking Consent, and Direct Mentor Visibility Consent. Optional or future processing is never bundled into the core choices.
 - Direct mentors review their students daily and follow up outside the application when attention is needed.
 - One vetted spiritual quotation may quietly frame the daily view. Content and attribution are supplied and verified separately.
 
@@ -45,13 +47,13 @@ Success means a student records daily consistency in seconds, a direct mentor un
 - Each active Habit Assignment owns an independent student reminder toggle and time; the mentor's Daily Review reminder remains separate.
 - Two consecutive missed days for the same habit create a student-level Needs Attention item on the third day. A valid retrospective correction may invalidate it; later improvement alone does not.
 - Daily Review and Follow-up are distinct mentor responsibilities with separate histories.
-- Visibility flows upward through the mentorship tree, never sideways. Peer students do not see individual records.
-- Student completion notes are visible to the student and mentors above. Mentor follow-up notes are visible to their writer and mentors above, not the student.
-- Direct mentors own ordinary accountability. Higher-mentor assignment or follow-up is exceptional and attributable.
+- Personal and accountability visibility is direct-only: users see their own records and Direct Mentors see only their Direct Students within the disclosed scope. Indirect mentors and peers receive no access.
+- Student Completion Notes are visible only to the student and their Direct Mentor under the disclosed consent scope. Mentor Follow-up notes are visible only to their writer, not the student or an indirect mentor.
+- Direct Mentors own accountability. There is no higher-mentor assignment, Follow-up, intervention, branch aggregate, or ancestor visibility.
 - Students control personal icon, accent color, and order; mentors control habit meaning, guide, completion definition, target, and assignment.
 - Shared habits are attributed, same-tree templates. Adoption creates an independent usable version; later source edits do not silently alter assignments.
 - Authorization must be enforced in server and data layers, including database policies where supported, not by hidden UI.
-- Conservative V1 policy: ship Week and 6 Months only; do not show student-facing peer aggregates; do not support direct-mentor transfer; lock Completion Notes with the day; keep Needs Attention mentor-only; allow a mistaken assignment to be voided only before any Completion exists and otherwise end it with history preserved. Senior intervention is limited to explicit attributable assignment and Follow-up paths.
+- Conservative V1 policy: ship Week and 6 Months only; do not show peer aggregates; do not support direct-mentor transfer; lock Completion Notes with the day; keep Needs Attention within the user/Direct Mentor relationship; and allow a mistaken assignment to be voided only before any Completion exists and otherwise end it with history preserved.
 
 ## Brand Commitments
 
@@ -73,10 +75,14 @@ The compact daily mode shows the rolling seven days ending today for every Habit
 
 1. Personal self-accounting stays in the foreground; mentorship remains a quiet, trustworthy safety net.
 2. Historical truth matters more than scores, streak pressure, or gamification.
-3. Direct responsibility stays local while visibility travels upward only as explicitly permitted.
+3. Direct responsibility and visibility stay inside the Direct Mentor relationship.
 4. Daily completion is fast and calm; deeper history and mentorship detail remain available without crowding it.
 5. Turkish language, cultural fit, privacy, accessibility, and emotional safety are product behavior, not cosmetic polish.
 
 ## Accessibility & Inclusion
 
 State meaning must never depend on color alone. Completed, missed, excused, retrospective, attention-needed, reviewed, and followed-up states must remain distinguishable at a glance and to assistive technology. Text must remain comfortably readable, mobile targets must be generous, keyboard and focus behavior must be complete, motion must respect reduced-motion preferences, and missed habits must not be presented as visual punishment. No specific WCAG conformance level has yet been mandated.
+
+## Future Direction
+
+A future Encouragement Connection may let two peers deliberately support one another. It will require a new product, privacy, safety, retention, and authorization review; mutual opt-in and separate consent from both people; immediate disconnect/block controls; and no automatic or retroactive sharing of existing history. It is not part of the current account or mentorship implementation.

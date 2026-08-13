@@ -1,246 +1,74 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-const baseMigration = readFileSync(
-  path.resolve(process.cwd(), "supabase/migrations/202608090001_cetele_v1.sql"),
-  "utf8",
-).replace(/\s+/g, " ").toLowerCase();
-const manualInvitationsMigration = readFileSync(
-  path.resolve(process.cwd(), "supabase/migrations/202608090002_manual_secure_invitations.sql"),
-  "utf8",
-).replace(/\s+/g, " ").toLowerCase();
-const upgradeFixesMigration = readFileSync(
-  path.resolve(process.cwd(), "supabase/migrations/202608090003_post_v1_upgrade_fixes.sql"),
-  "utf8",
-).replace(/\s+/g, " ").toLowerCase();
-const reviewHardeningMigration = readFileSync(
-  path.resolve(process.cwd(), "supabase/migrations/202608100001_pr5_review_hardening.sql"),
-  "utf8",
-).replace(/\s+/g, " ").toLowerCase();
-const migration = `${baseMigration} ${manualInvitationsMigration} ${upgradeFixesMigration} ${reviewHardeningMigration}`;
+const primary = readFileSync("supabase/migrations/202608120001_private_accounts_consent_invitations.sql", "utf8").replace(/\s+/g, " ").toLowerCase();
+const grants = readFileSync("supabase/migrations/202608120002_private_policy_helper_grants.sql", "utf8").replace(/\s+/g, " ").toLowerCase();
+const replay = readFileSync("supabase/migrations/202608120003_private_account_indexes_and_replay_guard.sql", "utf8").replace(/\s+/g, " ").toLowerCase();
+const security = readFileSync("supabase/migrations/202608120004_security_review_fixes.sql", "utf8").replace(/\s+/g, " ").toLowerCase();
+const current = `${primary} ${grants} ${replay} ${security}`;
 
-describe("hosted V1 migration contract", () => {
-  it("adds assignment-keyed reminder persistence in the unapplied hardening migration", () => {
-    expect(reviewHardeningMigration).toContain("add column if not exists habit_reminders jsonb not null default '{}'::jsonb");
-    expect(reviewHardeningMigration).toContain("jsonb_object_agg(a.id::text");
-    expect(reviewHardeningMigration).toContain("jsonb_typeof(habit_reminders) = 'object'");
-  });
-  it("gives authenticated users only the table operations used by the application", () => {
-    expect(migration).toMatch(/revoke all privileges on table public\.profiles,[^;]*public\.audit_events from public, anon, authenticated;/);
-    expect(migration).toContain("revoke all privileges on sequence public.audit_events_id_seq from public, anon, authenticated;");
-    expect(migration).toContain("grant select on table public.profiles");
-    expect(migration).toMatch(/grant select on table public\.profiles,[^;]*public\.audit_events to authenticated;/);
-    expect(migration).toContain("grant insert on table public.habit_definitions to authenticated;");
-    expect(migration).toContain("grant insert, update on table public.assignment_preferences, public.reminder_preferences to authenticated;");
-    expect(migration).toContain("grant update on table public.profiles to authenticated;");
-    expect(migration).not.toMatch(/grant [^;]*(delete|truncate)[^;]* to (anon|authenticated)/);
+describe("private account migration contract", () => {
+  it("uses direct relationship predicates and removes transitive capabilities", () => {
+    expect(primary).toContain("create or replace function private.is_direct_mentor(viewer uuid, subject uuid)");
+    expect(primary).toContain("r.mentor_id = viewer and r.student_id = subject and r.status = 'active'");
+    expect(primary).toContain("drop function if exists private.is_mentor_above(uuid, uuid)");
+    expect(primary).toContain("alter table public.habit_assignments drop column intervention_for_mentor_id");
+    expect(primary).not.toContain("senior_assignment_intervention");
   });
 
-  it("reconciles open attention whenever an assignment becomes terminal", () => {
-    const correction = migration.slice(
-      migration.indexOf("create or replace function public.end_habit_assignment"),
-      migration.indexOf("create or replace function public.assign_habit_definition"),
-    );
-    expect(correction).not.toContain("if v_status = 'void'::public.assignment_status then");
-    expect(correction).toContain("p_assignment_id = any(contributing_assignment_ids)");
-    expect(correction).toContain("v_remaining := public.missed_assignment_ids");
-    expect(correction).toContain("state = 'invalidated'");
-    expect(correction).toContain("trigger_assignment_id = v_remaining[1], contributing_assignment_ids = v_remaining");
-  });
-
-  it("derives reconciliation candidate dates in the student's timezone", () => {
-    const reconciliation = baseMigration.slice(
-      baseMigration.indexOf("create or replace function public.reconcile_my_attention"),
-      baseMigration.indexOf("create or replace function public.accept_mentorship_invitation"),
-    );
-    expect(reconciliation).toContain("min(a.created_at at time zone student_profile.timezone)::date");
-  });
-
-  it("upgrades legacy email invitations to expiring SHA-256 claims", () => {
-    const legacyInvitations = baseMigration.slice(
-      baseMigration.indexOf("create table public.mentorship_invitations"),
-      baseMigration.indexOf("create table public.mentorship_relationships"),
-    );
-    expect(legacyInvitations).toContain("invitee_email text not null");
-    expect(manualInvitationsMigration).toContain("add column token_hash text");
-    expect(manualInvitationsMigration).toContain("add column expires_at timestamptz");
-    expect(manualInvitationsMigration).toContain("set cancelled_at = now() where accepted_at is null and cancelled_at is null");
-    expect(manualInvitationsMigration).toContain("alter column token_hash set not null");
-    expect(manualInvitationsMigration).toContain("alter column expires_at set not null");
-    expect(manualInvitationsMigration).toContain("drop column invitee_email");
-    expect(manualInvitationsMigration).toContain("unique (token_hash)");
-    expect(manualInvitationsMigration).toContain("token_hash ~ '^[0-9a-f]{64}$'");
-    expect(manualInvitationsMigration).toContain("expires_at > created_at");
-    expect(migration).toContain("create policy invitations_read_parties on public.mentorship_invitations for select to authenticated using (mentor_id = (select auth.uid()) or invited_user_id = (select auth.uid()));");
-  });
-
-  it("keeps auth-user provisioning independent from invitation metadata and email", () => {
-    const provisioning = manualInvitationsMigration.slice(
-      manualInvitationsMigration.indexOf("create or replace function public.handle_new_auth_user"),
-      manualInvitationsMigration.indexOf("drop function if exists public.accept_mentorship_invitation"),
-    );
-    expect(provisioning).not.toContain("invitation_id");
-    expect(provisioning).not.toContain("invitee_email");
-    expect(provisioning).not.toContain("new.email");
-    expect(provisioning).not.toContain("update public.mentorship_invitations");
-  });
-
-  it("claims invitations atomically through a service-role-only RPC", () => {
-    const claim = manualInvitationsMigration.slice(
-      manualInvitationsMigration.indexOf("create or replace function public.claim_mentorship_invitation"),
-      manualInvitationsMigration.indexOf("revoke all on function public.claim_mentorship_invitation"),
-    );
-    expect(claim).toContain("returns uuid language plpgsql security definer set search_path = ''");
-    expect(claim).toContain("where token_hash = lower(p_token_hash) for update");
-    expect(claim).toContain("expires_at <= now()");
-    expect(claim).toContain("invited_user_id is not null");
-    expect(claim).toContain("accepted_at is not null");
-    expect(claim).toContain("cancelled_at is not null");
-    expect(claim).toContain("where student_id = p_user_id and status = 'active'");
-    expect(claim).toContain("private.is_mentor_above(p_user_id, v_mentor)");
-    expect(claim).toContain("insert into public.mentorship_relationships(mentor_id, student_id)");
-    expect(claim).toContain("set invited_user_id = p_user_id, accepted_at = now()");
-    expect(claim).toContain("'mentorship_invitation_accepted'");
-    expect(claim).toContain("return v_invitation_id");
-    expect(manualInvitationsMigration).toContain("drop function if exists public.accept_mentorship_invitation(uuid);");
-    expect(manualInvitationsMigration).toContain("revoke all on function public.claim_mentorship_invitation(text, uuid) from public, anon, authenticated;");
-    expect(manualInvitationsMigration).toContain("grant execute on function public.claim_mentorship_invitation(text, uuid) to service_role;");
-  });
-
-  it("preserves ended and void assignment history at the completion RPC boundary", () => {
-    const removal = migration.slice(
-      migration.indexOf("create or replace function public.remove_completion"),
-      migration.indexOf("create or replace function public.end_habit_assignment"),
-    );
-    expect(removal).toContain("where a.id = p_assignment_id and a.status = 'active'");
-  });
-
-  it("carries every post-001 fix in an independently deployable upgrade migration", () => {
-    const removal = upgradeFixesMigration.slice(
-      upgradeFixesMigration.indexOf("create or replace function public.remove_completion"),
-      upgradeFixesMigration.indexOf("create or replace function public.end_habit_assignment"),
-    );
-    const correction = upgradeFixesMigration.slice(
-      upgradeFixesMigration.indexOf("create or replace function public.end_habit_assignment"),
-      upgradeFixesMigration.indexOf("create or replace function public.reconcile_my_attention"),
-    );
-    const reconciliation = upgradeFixesMigration.slice(
-      upgradeFixesMigration.indexOf("create or replace function public.reconcile_my_attention"),
-      upgradeFixesMigration.indexOf("revoke all on function public.remove_completion"),
-    );
-
-    expect(removal).toContain("where a.id = p_assignment_id and a.status = 'active'");
-    expect(correction).toContain("p_assignment_id = any(contributing_assignment_ids)");
-    expect(correction).toContain("v_remaining := public.missed_assignment_ids");
-    expect(reconciliation).toContain("min(a.created_at at time zone student_profile.timezone)::date");
-    expect(upgradeFixesMigration).toContain("grant select on table public.audit_events to authenticated;");
-  });
-
-  it("resets Supabase role grants before exposing only intended RPCs", () => {
-    const internalFunctions = [
-      "public.handle_new_auth_user()",
-      "private.is_direct_mentor(uuid, uuid)",
-      "private.is_mentor_above(uuid, uuid)",
-      "private.same_tree(uuid, uuid)",
-      "public.reject_mentorship_cycle()",
-      "public.missed_assignment_ids(uuid, date, date)",
-    ];
-    const authenticatedRpcs = [
-      "public.record_completion(uuid, date, numeric, text)",
-      "public.record_follow_up(uuid, text)",
-      "public.remove_completion(uuid, date)",
-      "public.end_habit_assignment(uuid, text)",
-      "public.assign_habit_definition(uuid, uuid, numeric)",
-      "public.grant_excused_day(uuid, uuid, date, text)",
-      "public.record_daily_review()",
-      "public.reconcile_my_attention()",
-    ];
-
-    for (const fn of [...internalFunctions, ...authenticatedRpcs]) {
-      expect(upgradeFixesMigration).toContain(`revoke all on function ${fn} from public, anon, authenticated, service_role;`);
+  it("denies personal records unless the viewer is the active subject or Direct Mentor", () => {
+    for (const policy of ["profiles_read_direct", "assignments_read_direct", "completions_read_direct", "excuses_read_direct", "attention_read_direct"]) {
+      expect(primary).toContain(`create policy ${policy}`);
     }
-    for (const fn of internalFunctions) {
-      expect(upgradeFixesMigration).not.toContain(`grant execute on function ${fn} to authenticated;`);
+    expect(primary).toContain("private.is_direct_mentor((select auth.uid()), student_id)");
+    expect(primary).not.toMatch(/create policy [^;]*(above|ancestor|intervention)/);
+  });
+
+  it("requires active account state inside every sensitive SECURITY DEFINER path", () => {
+    for (const fn of ["record_completion", "remove_completion", "record_follow_up", "grant_excused_day", "reconcile_my_attention", "create_habit_definition", "adopt_habit_definition", "reorder_habit_assignments", "record_daily_review"]) {
+      const start = primary.indexOf(`create or replace function public.${fn}`);
+      const body = primary.slice(start, primary.indexOf("$$;", start));
+      expect(start).toBeGreaterThan(0);
+      expect(body).toContain("private.is_active_account((select auth.uid()))");
     }
-    for (const fn of authenticatedRpcs) {
-      expect(upgradeFixesMigration).toContain(`grant execute on function ${fn} to authenticated;`);
+  });
+
+  it("keeps legal evidence append-only, version-bound, and linked on withdrawal", () => {
+    expect(primary).toContain("foreign key (document_kind, document_version) references public.legal_documents(kind, version)");
+    expect(primary).toContain("create trigger prevent_legal_event_mutation before update or delete");
+    expect(primary).toContain("'consent_withdrawn', p_purpose");
+    expect(primary).toContain("'settings_withdrawal_confirmation', v_grant.id");
+  });
+
+  it("limits registration binding to service role and onboarding completion to authenticated users", () => {
+    expect(primary).toContain("revoke all on function public.begin_pending_registration(uuid, public.claim_kind, text) from public, anon, authenticated, service_role");
+    expect(primary).toContain("grant execute on function public.begin_pending_registration(uuid, public.claim_kind, text) to service_role");
+    expect(primary).toContain("grant execute on function public.complete_onboarding(text, text, text, text, text, boolean, boolean, boolean) to authenticated");
+    expect(primary).toContain("email_confirmed_at is not null");
+  });
+
+  it("guards idempotent reservation from switching claims and indexes cleanup/expiry/FKs", () => {
+    expect(replay).toContain("pending_registrations.claim_kind = excluded.claim_kind");
+    expect(replay).toContain("access_code_id is not distinct from excluded.access_code_id");
+    expect(replay).toContain("user already has a different pending registration");
+    for (const index of ["pending_registrations_cleanup", "access_codes_expiry", "mentorship_invitations_expiry", "access_codes_created_by", "legal_events_document", "legal_events_relates_to"]) {
+      expect(current).toContain(index);
     }
-    expect(upgradeFixesMigration).toContain("revoke all on function public.claim_mentorship_invitation(text, uuid) from public, anon, authenticated, service_role;");
-    expect(upgradeFixesMigration).toContain("grant execute on function public.claim_mentorship_invitation(text, uuid) to service_role;");
   });
 
-  it("keeps arbitrary-user hierarchy helpers outside the public RPC surface", () => {
-    expect(migration).toContain("create schema if not exists private;");
-    expect(migration).not.toMatch(/function public\.(is_direct_mentor|is_mentor_above|same_tree)\(/);
-    expect(migration).not.toMatch(/grant execute on function private\.(is_direct_mentor|is_mentor_above|same_tree)\([^;]*to authenticated/);
-    expect(migration).toContain("grant execute on function private.is_current_user_mentor_above(uuid) to authenticated;");
-    expect(migration).toContain("grant execute on function private.is_in_current_user_tree(uuid) to authenticated;");
-  });
-
-  it("indexes hierarchy filters and every non-primary foreign-key side", () => {
-    const requiredIndexes = [
-      "create index invitations_by_mentor on public.mentorship_invitations(mentor_id);",
-      "create index invitations_by_invited_user on public.mentorship_invitations(invited_user_id);",
-      "create index definitions_by_source on public.habit_definitions(source_definition_id);",
-      "create index definitions_by_source_creator on public.habit_definitions(source_creator_id);",
-      "create index assignments_by_assigner on public.habit_assignments(assigned_by);",
-      "create index assignments_by_intervention_mentor on public.habit_assignments(intervention_for_mentor_id);",
-      "create index excuses_by_assignment on public.excused_days(assignment_id);",
-      "create index excuses_by_grantor on public.excused_days(granted_by);",
-      "create index attention_by_trigger_assignment on public.attention_items(trigger_assignment_id);",
-      "create index followups_by_responsible_mentor on public.followups(responsible_mentor_id);",
-      "create index attention_open_by_student on public.attention_items(student_id, second_missed_date) where state = 'open';",
-    ];
-
-    for (const index of requiredIndexes) expect(migration).toContain(index);
-  });
-
-  it("evaluates the authenticated identity through init plans in RLS policies", () => {
-    const policies = baseMigration.slice(baseMigration.indexOf("create policy"));
-    expect(policies.replaceAll("(select auth.uid())", "")).not.toContain("auth.uid()");
-  });
-
-  it("hardens shared-definition and void-assignment visibility", () => {
-    expect(reviewHardeningMigration).toContain("drop policy if exists definitions_read on public.habit_definitions;");
-    expect(reviewHardeningMigration).toContain("drop policy if exists assignments_read_upward on public.habit_assignments;");
-    expect(reviewHardeningMigration).toMatch(/visibility = 'shared'[^;]*exists \(\s*select 1 from public\.mentorship_relationships r where r\.mentor_id = \(select auth\.uid\(\)\) and r\.status = 'active'\s*\)[^;]*private\.is_in_current_user_tree\(author_id\)/);
-    expect(reviewHardeningMigration).toContain("a.status in ('active', 'ended')");
-    expect(reviewHardeningMigration).toMatch(/create policy assignments_read_upward[^;]*status in \('active', 'ended'\)/);
-  });
-
-  it("limits profile writes and Habit Definition creation to narrow RPCs", () => {
-    expect(reviewHardeningMigration).toContain("revoke update on table public.profiles from authenticated;");
-    expect(reviewHardeningMigration).toContain("add column if not exists show_month_labels boolean not null default true");
-    expect(reviewHardeningMigration).toContain("add column if not exists show_day_labels boolean not null default true");
-    expect(reviewHardeningMigration).toContain("grant update(theme, show_month_labels, show_day_labels) on table public.profiles to authenticated;");
-    expect(reviewHardeningMigration).toContain("revoke insert on table public.habit_definitions from authenticated;");
-    expect(reviewHardeningMigration).toContain("create or replace function public.create_habit_definition(");
-    expect(reviewHardeningMigration).toContain("create or replace function public.adopt_habit_definition(");
-    expect(reviewHardeningMigration).toContain("values ((select auth.uid()), v_creator_name");
-    expect(reviewHardeningMigration).toContain("v_source.id, v_source.author_id, v_source.creator_name");
-  });
-
-  it("rejects binary and fractional amounts and reorders assignment preferences atomically", () => {
-    expect(reviewHardeningMigration).toContain("if v_mode = 'binary' and p_amount is not null then raise exception 'binary completion amount must be null'; end if;");
-    expect(reviewHardeningMigration).toContain("set amount = greatest(1, round(amount))");
-    expect(reviewHardeningMigration).toContain("constraint completions_amount_integer_check");
-    expect(reviewHardeningMigration).toContain("if p_amount is not null and p_amount <> trunc(p_amount) then raise exception 'completion amount must be an integer'; end if;");
-    expect(reviewHardeningMigration).toContain("create or replace function public.reorder_habit_assignments(p_assignment_ids uuid[])");
-    expect(reviewHardeningMigration).toContain("complete active assignment order required");
-    expect(reviewHardeningMigration).toContain("with ordinality");
-    expect(reviewHardeningMigration).toMatch(/on conflict \(assignment_id\) do update set[^;]*sort_order = excluded\.sort_order/);
-  });
-
-  it("resets and explicitly grants only the new authenticated RPC surface", () => {
-    const newRpcs = [
-      "public.create_habit_definition(text, text, text, text, text, text, public.habit_mode, numeric, public.definition_visibility)",
-      "public.adopt_habit_definition(uuid)",
-      "public.reorder_habit_assignments(uuid[])",
-    ];
-    for (const fn of newRpcs) {
-      expect(reviewHardeningMigration).toContain(`revoke all on function ${fn} from public, anon, authenticated, service_role;`);
-      expect(reviewHardeningMigration).toContain(`grant execute on function ${fn} to authenticated;`);
+  it("uses empty search paths and exposes only reviewed policy helpers", () => {
+    expect(primary.match(/security definer set search_path = ''/g)?.length).toBeGreaterThanOrEqual(20);
+    for (const fn of ["has_current_consent(uuid, public.consent_purpose)", "is_active_account(uuid)", "is_direct_mentor(uuid, uuid)", "is_directly_related(uuid, uuid)"]) {
+      expect(grants).toContain(`grant execute on function private.${fn} to authenticated`);
     }
+    expect(grants).not.toContain("begin_pending_registration");
+    expect(grants).not.toContain("complete_onboarding");
+  });
+
+  it("binds visibility to the exact mentor and fails closed for activation", () => {
+    expect(primary).toContain("recipient_scope ->> 'direct_mentor_id' = viewer::text");
+    expect(primary).toContain("create table public.deployment_controls");
+    expect(primary).toContain("account activation is disabled");
+    expect(security).toContain("drop function private.same_mentorship_tree(uuid, uuid)");
   });
 });

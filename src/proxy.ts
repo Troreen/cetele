@@ -18,5 +18,9 @@ export const config = {
     "/library/:path*",
     "/network/:path*",
     "/settings/:path*",
+    "/admin/:path*",
+    "/account/setup/:path*",
+    "/account/reset-password/:path*",
+    "/account/recover-deletion/:path*",
   ],
 };

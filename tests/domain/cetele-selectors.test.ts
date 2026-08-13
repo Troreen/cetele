@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { fixtureState } from "@/modules/cetele/fixtures";
-import { branchStudents, completionRatio, directStudents } from "@/modules/cetele/selectors";
+import { completionRatio, directStudents } from "@/modules/cetele/selectors";
 
 describe("Çetele mentor summaries", () => {
-  it("models Tarik as a student and senior mentor over the requested three junior branches", () => {
+  it("returns only the current mentor's direct students", () => {
     const tarik = fixtureState.people.find((person) => person.id === fixtureState.currentUserId);
 
     expect(tarik).toMatchObject({ name: "Tarik", mentorId: "senior" });
     expect(directStudents(fixtureState).map((person) => person.name)).toEqual(["Yunus", "Yusuf", "Bera"]);
-    expect(directStudents(fixtureState, "ayse").map((person) => person.name)).toEqual(["Ilyas", "Okan", "Akif", "Mustafa", "Eyup", "Aslan"]);
-    expect(directStudents(fixtureState, "zeynep").map((person) => person.name)).toEqual(["Yusuf Ahmet", "Yusuf Ismail", "Selim", "Berat"]);
-    expect(directStudents(fixtureState, "eren").map((person) => person.name)).toEqual(["Emin", "Murat", "Batuhan"]);
-    expect(branchStudents(fixtureState)).toHaveLength(16);
+    expect(directStudents(fixtureState).map((person) => person.name)).not.toContain("Okan");
   });
 
   it("excludes whole-day and assignment-scoped Excused Days from today's ratio", () => {

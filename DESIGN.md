@@ -242,7 +242,15 @@ Mentor surfaces widen “The Quiet Ledger” around people and responsibility wi
 
 **The Relationship-First Rule.** Mentor overviews organize around people and responsible Direct Mentors, not KPI cards or chart walls.
 
-**The Quiet Intervention Rule.** Senior actions remain secondary, identify the ordinary responsible mentor, and are always attributable.
+**The Direct Boundary Rule.** Mentor surfaces contain only Direct Students. They never list, summarize, link to, or offer actions for a Direct Student's own mentees. A guessed nested-student URL uses the same calm not-found treatment as an unknown record.
+
+### Private account and consent surfaces
+
+- **Claim cards:** Access Codes and Mentorship Invitations use the existing focused auth card. Bearer claims stay in URL fragments, are removed immediately after submission, and never appear in query strings or reusable UI history.
+- **Account setup:** Alias, password, Terms Acceptance, Core Tracking Consent, and—only for a mentored account—Direct Mentor Visibility Consent are separate sections. Every checkbox starts unchecked and the completion action remains disabled until the required choices are affirmative.
+- **Legal state:** Until approved controller details and Turkish legal wording are supplied, every legal page and setup layer carries an unmistakable `NON-PRODUCTION FIXTURE` warning. Fixture copy must never be visually mistaken for approved terms.
+- **Rights and withdrawal:** Settings groups legal documents, export, consent withdrawal, and deletion paths in one quiet section. Destructive choices require explicit confirmation; Direct Mentor withdrawal explains that mentor access stops immediately.
+- **Responsive floor:** Account and legal cards remain single-column and keyboard complete at 320px. Error summaries receive focus; password visibility controls have accessible names; content never relies on color alone.
 
 ### Habit Grid Card
 

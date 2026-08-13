@@ -18,21 +18,6 @@ export function directStudents(state: CeteleState, mentorId = state.currentUserI
   return state.people.filter((item) => item.mentorId === mentorId);
 }
 
-export function branchStudents(state: CeteleState, mentorId = state.currentUserId) {
-  const result: CeteleState["people"] = [];
-  const queue = directStudents(state, mentorId).map((person) => person.id);
-  const visited = new Set<string>();
-  while (queue.length) {
-    const id = queue.shift();
-    if (!id || visited.has(id)) continue;
-    visited.add(id);
-    const descendant = person(state, id);
-    if (descendant) result.push(descendant);
-    queue.push(...directStudents(state, id).map((child) => child.id));
-  }
-  return result;
-}
-
 export function completionFor(state: CeteleState, assignmentId: string, date: string) {
   return state.completions.find((item) => item.assignmentId === assignmentId && item.date === date);
 }

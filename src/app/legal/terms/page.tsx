@@ -1,0 +1,1 @@
+export default function Page() { return <main className="legal-page"><h1>Hizmet Koşulları</h1><p><strong>NON-PRODUCTION FIXTURE — yasal/human onayı bekliyor.</strong></p><p>Bu sayfa yalnızca arayüz, sürümleme ve kanıt akışını doğrulamak içindir. Gerçek kullanıcı kabulü için kullanılamaz.</p></main>; }

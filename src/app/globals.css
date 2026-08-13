@@ -320,6 +320,25 @@ button:disabled { cursor: default; opacity: .72; }
 .password-field button { position: absolute; right: 3px; top: 3px; width: 40px; height: 40px; display: grid; place-items: center; background: transparent; border: 0; color: var(--muted); }
 .auth-footnote { margin: 18px 0 0; color: var(--muted); display: flex; gap: 6px; justify-content: center; font-size: 12px; }
 .auth-footnote a { color: var(--ink); text-decoration: underline; }
+.text-button { min-height: 44px; border: 0; background: transparent; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.onboarding-card { width: min(560px, 100%); }
+.onboarding-section { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.onboarding-section legend { padding: 0; margin-bottom: 10px; font-size: 16px; font-weight: 720; }
+.field-help { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.field-help a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.legal-fixture { border-top: 1px solid var(--border); padding-top: 18px; }
+.legal-fixture > p:first-of-type { padding: 10px 12px; background: var(--surface-raised); border-radius: 8px; color: var(--muted); }
+.consent-choice { grid-template-columns: 24px 1fr !important; align-items: start; gap: 10px !important; padding: 10px 0; }
+.consent-choice input { width: 20px !important; height: 20px; margin-top: 1px; }
+.consent-choice span { display: grid; gap: 4px; }
+.consent-choice small { color: var(--muted); font-weight: 400; line-height: 1.4; }
+.confirmation-note { display: grid; grid-template-columns: 22px 1fr; gap: 9px; align-items: start; color: var(--muted); }
+.confirmation-note p { margin: 0; }
+.error-summary { display: grid; gap: 4px; outline: 0; }
+.legal-page { width: min(720px, calc(100% - 32px)); margin: 48px auto; line-height: 1.6; }
+.account-rights { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.secondary-button.danger { color: #d65c5c; }
+.direct-summary { max-width: 720px; }
 @media (max-width: 980px) {
   .app-frame { grid-template: 58px 1fr 68px / 1fr; }
   .topbar { padding: 0 15px; }

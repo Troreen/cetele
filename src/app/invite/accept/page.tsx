@@ -1,2 +1,2 @@
 import { AuthCard } from "@/components/auth-card";
-export default function Page() { return <AuthCard mode="claim" />; }
+export default function Page() { return <AuthCard mode="mentorship-invitation" />; }

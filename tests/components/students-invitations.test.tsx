@@ -38,8 +38,9 @@ describe("manual invitation UI", () => {
     render(<StudentsScreen />);
 
     fireEvent.click(screen.getByRole("button", { name: "Öğrenci davet et" }));
-    fireEvent.change(screen.getByLabelText("Ad soyad"), { target: { value: "Selin Yılmaz" } });
-    fireEvent.click(screen.getByRole("button", { name: "Güvenli bağlantı oluştur" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tek kullanımlı bağlantı oluştur" }));
+
+    expect(mocks.createManualInvitation).toHaveBeenCalledWith({});
 
     expect(await screen.findByRole("button", { name: "Bağlantıyı kopyala" })).toBeVisible();
     expect(screen.queryByRole("link", { name: /bağlantısını aç/i })).not.toBeInTheDocument();

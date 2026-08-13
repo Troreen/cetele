@@ -73,16 +73,9 @@ export function visibilityFor(
   viewerId: string,
   subjectId: string,
   parents: ReadonlyMap<string, string>,
-): "subject" | "mentor-above" | "none" {
+): "subject" | "direct-mentor" | "none" {
   if (viewerId === subjectId) return "subject";
-  let cursor = parents.get(subjectId);
-  const visited = new Set<string>();
-  while (cursor && !visited.has(cursor)) {
-    if (cursor === viewerId) return "mentor-above";
-    visited.add(cursor);
-    cursor = parents.get(cursor);
-  }
-  return "none";
+  return parents.get(subjectId) === viewerId ? "direct-mentor" : "none";
 }
 
 export function adoptSharedHabit(source: SharedHabit, adopterId: string, id: string) {

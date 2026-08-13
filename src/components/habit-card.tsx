@@ -305,7 +305,7 @@ export function HabitCard({ assignment, compact = false, compactList = false, hi
     {panel === "note" && todayCompletion ? <Dialog title="Bugünün notu" onClose={() => setPanel(null)} variant="sheet" initialFocus="first-field">
       <form className="form-stack" onSubmit={(event) => { event.preventDefault(); dispatch({ type: "set-completion-note", assignmentId: assignment.id, date: state.today, note }); setPanel(null); }}>
         <label>Kısa düşünce<textarea autoFocus rows={4} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} /></label>
-        <p className="privacy-note">Bu not yalnızca senin ve üst mentorlarının görünümündedir.</p>
+        <p className="privacy-note">Bu not yalnızca senin ve doğrudan mentorunun görünümündedir.</p>
         <button className="primary-button">Notu kaydet</button>
       </form>
     </Dialog> : null}

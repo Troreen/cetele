@@ -1,0 +1,1 @@
+export default function Page() { return <main className="legal-page"><h1>Gizlilik Bildirimi</h1><p><strong>NON-PRODUCTION FIXTURE — controller, amaç, Article 6/9, saklama ve aktarım kararları onay bekliyor.</strong></p><p>Çetele yasal ad istemez; kurtarma e-postası uygulama tablolarına kopyalanmaz. Bu özet nihai hukuki bildirim değildir.</p></main>; }

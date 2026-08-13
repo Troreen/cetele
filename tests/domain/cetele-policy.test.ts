@@ -45,11 +45,11 @@ describe("Çetele policy interface", () => {
     ])).toEqual({ current: 2, best: 2 });
   });
 
-  it("allows individual records upward but never sideways", () => {
+  it("allows individual records only to the subject and their direct mentor", () => {
     const parents = new Map([["student", "mentor"], ["mentor", "senior"], ["peer", "mentor"]]);
     expect(visibilityFor("student", "student", parents)).toBe("subject");
-    expect(visibilityFor("mentor", "student", parents)).toBe("mentor-above");
-    expect(visibilityFor("senior", "student", parents)).toBe("mentor-above");
+    expect(visibilityFor("mentor", "student", parents)).toBe("direct-mentor");
+    expect(visibilityFor("senior", "student", parents)).toBe("none");
     expect(visibilityFor("peer", "student", parents)).toBe("none");
   });
 

@@ -1,17 +1,13 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, Eye, EyeOff } from "lucide-react";
-import { claimManualInvitation, signInWithPassword } from "@/modules/cetele/actions";
+import { ArrowRight, Check, Eye, EyeOff, KeyRound, Mail } from "lucide-react";
+import { previewRegistrationClaim, requestPasswordRecovery, startRegistration } from "@/modules/cetele/account-actions";
+import { signInWithPassword } from "@/modules/cetele/actions";
 
-type AuthMode = "sign-in" | "claim";
-
-const AUTH_FAILURE_COPY: Record<AuthMode, string> = {
-  "sign-in": "E-posta veya parola doğrulanamadı. Lütfen tekrar dene.",
-  claim: "Davet tamamlanamadı. Bağlantı kullanılmış veya süresi dolmuş olabilir.",
-};
+type AuthMode = "sign-in" | "claim" | "access-code" | "mentorship-invitation";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const FRAGMENT_UNREAD = "fragment-unread";
 const FRAGMENT_INVALID = "fragment-invalid";
@@ -21,7 +17,7 @@ function subscribeToFragment(onChange: () => void) {
   return () => window.removeEventListener("hashchange", onChange);
 }
 
-function invitationTokenFromFragment() {
+function claimTokenFromFragment() {
   const candidate = new URLSearchParams(window.location.hash.slice(1)).get("token") ?? "";
   return TOKEN_PATTERN.test(candidate) ? candidate : FRAGMENT_INVALID;
 }
@@ -29,52 +25,69 @@ function invitationTokenFromFragment() {
 export function AuthCard({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const hosted = process.env.NEXT_PUBLIC_CETELE_DATA_ADAPTER === "supabase";
-  const [show, setShow] = useState(false);
-  const [email, setEmail] = useState(hosted ? "" : mode === "sign-in" ? "mert@example.com" : "davetli@example.com");
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState(hosted ? "" : "ornek@example.test");
   const [password, setPassword] = useState(hosted ? "" : "cetele-demo");
-  const [passwordConfirmation, setPasswordConfirmation] = useState(hosted ? "" : "cetele-demo");
-  const fragmentState = useSyncExternalStore(subscribeToFragment, invitationTokenFromFragment, () => FRAGMENT_UNREAD);
-  const fragmentReady = fragmentState !== FRAGMENT_UNREAD;
-  const token = fragmentState !== FRAGMENT_UNREAD && fragmentState !== FRAGMENT_INVALID ? fragmentState : "";
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [claimOutcome, setClaimOutcome] = useState<"sign-in-required" | "cleanup-required" | null>(null);
-  const content = mode === "sign-in"
-    ? { title: "Çetelene dön", description: "Kendi kaydın ve sorumlulukların tek yerde.", button: "Giriş yap" }
-    : { title: "Davetini kabul et", description: "E-posta adresini ve yeni parolanı belirleyerek hesabını oluştur.", button: "Daveti kabul et" };
+  const [recovery, setRecovery] = useState(false);
+  const [mentorAlias, setMentorAlias] = useState("");
+  const fragmentState = useSyncExternalStore(subscribeToFragment, claimTokenFromFragment, () => FRAGMENT_UNREAD);
+  const token = fragmentState !== FRAGMENT_UNREAD && fragmentState !== FRAGMENT_INVALID ? fragmentState : "";
+  const isClaim = mode !== "sign-in";
+  useEffect(() => {
+    if (!hosted || !token || !isClaim) return;
+    void previewRegistrationClaim({ token, kind: mode === "access-code" ? "access_code" : "mentorship_invitation" })
+      .then((claim) => setMentorAlias(claim.mentorAlias ?? ""))
+      .catch(() => setError("Bağlantı doğrulanamadı. Yeni bir bağlantı iste."));
+  }, [hosted, isClaim, mode, token]);
+  const title = mode === "sign-in" ? "Çetelene dön" : mode === "access-code" ? "Erişim Kodunu kullan" : "Mentorluk davetini aç";
+  const description = mode === "sign-in"
+    ? "Özel e-posta adresin ve parolanla giriş yap."
+    : mode === "access-code"
+      ? "Bu kod bağımsız bir Çetele hesabı kurar; mentorluk ilişkisi oluşturmaz."
+      : `Geçerli bağlantı, kurulum tamamlandığında ${mentorAlias || "bağlantıda belirtilen kişi"} ile bir Doğrudan Mentor ilişkisi kurar.`;
 
   async function submit() {
     setError("");
-    if (mode === "claim" && (!token || password !== passwordConfirmation)) {
-      setError(!token ? AUTH_FAILURE_COPY.claim : "Parolalar aynı olmalı.");
-      return;
-    }
+    setStatus("");
     try {
-      if (hosted && mode === "sign-in") await signInWithPassword({ email, password });
-      if (hosted && mode === "claim") {
-        const result = await claimManualInvitation({ token, email, password, passwordConfirmation });
-        if (result.outcome !== "signed-in") {
-          window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-          setClaimOutcome(result.outcome);
+      if (mode === "sign-in") {
+        if (recovery) {
+          const result = await requestPasswordRecovery({ email });
+          setStatus(result.message);
           return;
         }
+        if (hosted) {
+          const result = await signInWithPassword({ email, password });
+          router.push(result.destination);
+        } else router.push("/today");
+        return;
       }
-      if (mode === "claim") window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-      router.push("/today");
+      if (!token) throw new Error();
+      if (!hosted) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        router.push(`/account/setup?kind=${mode === "access-code" ? "access_code" : "mentorship_invitation"}`);
+        return;
+      }
+      const result = await startRegistration({ token, email, kind: mode === "access-code" ? "access_code" : "mentorship_invitation" });
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      setStatus(result.message);
     } catch {
-      setError(AUTH_FAILURE_COPY[mode]);
+      setError(isClaim ? "Bağlantı doğrulanamadı. Yeni bir bağlantı iste." : "E-posta veya parola doğrulanamadı. Tekrar dene.");
     }
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <Link href="/today" className="brand"><span className="brand-mark">✓</span>Çetele</Link>
-    <div className="auth-copy"><h1>{claimOutcome === "sign-in-required" ? "Hesabın hazır" : claimOutcome === "cleanup-required" ? "Yardım gerekiyor" : content.title}</h1><p>{claimOutcome === "sign-in-required" ? "Davet kabul edildi ve mentorluk ilişkin kuruldu." : claimOutcome === "cleanup-required" ? "Hesap oluşturma işlemi güvenle tamamlanamadı." : content.description}</p></div>
-    {claimOutcome === "sign-in-required" ? <div className="form-stack"><p className="privacy-note" role="status"><Check size={16} /> Oturum otomatik açılamadı. Belirlediğin e-posta ve parola ile giriş yapabilirsin.</p><Link className="primary-button full" href="/sign-in">Giriş ekranına git <ArrowRight size={18} /></Link></div> : claimOutcome === "cleanup-required" ? <div className="form-stack"><p className="form-error" role="alert">Hesap oluşturma geri alınamadı. Bu bağlantıyla yeniden deneme; bağlantıyı paylaşan mentorla iletişime geç ve Çetele yöneticisinden yardım iste.</p><Link className="secondary-button full" href="/sign-in">Giriş ekranına dön</Link></div> : <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
-      <label>E-posta<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
-      <label>Parola<span className="password-field"><input type={show ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "claim" ? "new-password" : "current-password"} minLength={8} maxLength={72} required /><button type="button" onClick={() => setShow(!show)} aria-label={show ? "Parolayı gizle" : "Parolayı göster"}>{show ? <EyeOff size={18} /> : <Eye size={18} />}</button></span></label>
-      {mode === "claim" ? <label>Parola tekrarı<input type={show ? "text" : "password"} value={passwordConfirmation} onChange={(event) => setPasswordConfirmation(event.target.value)} autoComplete="new-password" minLength={8} maxLength={72} required /></label> : null}
-      {error ? <p className="form-error" role="alert">{error}</p> : mode === "claim" && fragmentReady && !token ? <p className="form-error" role="alert">{AUTH_FAILURE_COPY.claim}</p> : null}
-      <button className="primary-button full" type="submit" disabled={mode === "claim" && (!fragmentReady || !token)}>{content.button} <ArrowRight size={18} /></button>
+    <Link href={mode === "sign-in" ? "/sign-in" : "#"} className="brand"><span className="brand-mark"><Check size={15} /></span>Çetele</Link>
+    <div className="auth-copy"><h1>{recovery ? "Parolanı yenile" : title}</h1><p>{recovery ? "Hesap olup olmadığını açığa çıkarmadan yenileme bağlantısı göndeririz." : description}</p></div>
+    {status ? <div className="form-stack"><p className="privacy-note" role="status"><Mail size={17} /> {status}</p><Link className="secondary-button full" href="/sign-in">Giriş ekranına dön</Link></div> : <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+      <label>Özel e-posta<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
+      {mode === "sign-in" && !recovery ? <label>Parola<span className="password-field"><input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" minLength={8} required /><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Parolayı gizle" : "Parolayı göster"}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></span></label> : null}
+      {error ? <p className="form-error" role="alert">{error}</p> : isClaim && fragmentState === FRAGMENT_INVALID ? <p className="form-error" role="alert">Bağlantı doğrulanamadı. Yeni bir bağlantı iste.</p> : null}
+      <button className="primary-button full" type="submit" disabled={isClaim && (!token || fragmentState === FRAGMENT_UNREAD)}>{recovery ? "Yenileme bağlantısı iste" : mode === "sign-in" ? "Giriş yap" : "Doğrulama e-postası iste"} <ArrowRight size={18} /></button>
+      {mode === "sign-in" ? <button className="text-button" type="button" onClick={() => { setRecovery(!recovery); setError(""); setStatus(""); }}><KeyRound size={16} /> {recovery ? "Girişe dön" : "Parolamı unuttum"}</button> : null}
     </form>}
-    {!claimOutcome ? mode === "claim" ? <p className="auth-footnote"><Check size={15} /> {hosted ? "Bağlantı tek kullanımlıktır ve 72 saat geçerlidir." : "Yerel demo: sunucuda hesap veya mentorluk ilişkisi oluşturulmaz."}</p> : <p className="auth-footnote">{hosted ? "Güvenli Supabase oturumu" : "Yerel doğrulama modu"}</p> : null}
+    <p className="auth-footnote"><Check size={15} /> {isClaim ? "Çetele yasal ad istemez; e-posta yalnızca Supabase Auth içinde kalır." : hosted ? "Güvenli Supabase oturumu" : "Yerel doğrulama modu"}</p>
   </section></main>;
 }

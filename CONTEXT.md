@@ -8,6 +8,10 @@
 A person with one Çetele identity who may simultaneously be mentored and mentor others.
 _Avoid_: Account type, student account, mentor account
 
+**Alias**:
+A user-chosen, non-unique display identity used inside Çetele without asserting or collecting a legal name.
+_Avoid_: Legal name, full name, username
+
 **Direct Mentor**:
 The single user immediately above another user in the mentorship tree and ordinarily responsible for that user's accountability.
 _Avoid_: Owner, supervisor, assigned admin
@@ -16,21 +20,33 @@ _Avoid_: Owner, supervisor, assigned admin
 A user immediately below a mentor in the mentorship tree.
 _Avoid_: Report, subordinate, member
 
-**Mentor Above**:
-Any direct or indirect mentor above a user in the mentorship tree.
-_Avoid_: Admin, observer
+**Indirect Mentor**:
+Any mentor above a user's Direct Mentor in the mentorship tree. This structural relationship grants no visibility into that user's identity, habits, or accountability records.
+_Avoid_: Mentor Above, senior mentor, admin, observer
 
 **Group**:
 A mentor's direct students, optionally known by a friendly name.
 _Avoid_: Team, cohort, branch
 
 **Branch**:
-Every user recursively below a mentor, including that mentor's group and all descendant groups.
+Every user recursively below a mentor, including that mentor's group and all descendant groups. Membership in a Branch grants no transitive data visibility.
 _Avoid_: Group, organization
 
 **Mentorship Invitation**:
-A pending offer from a mentor to establish a direct-mentor relationship, represented by a revocable single-use link that the mentor delivers privately to the intended student.
+A pending offer to establish one Direct Mentor relationship, claimed through a revocable, expiring, single-use link without the mentor pre-identifying the recipient.
 _Avoid_: Email invitation, shared password, account provisioning, membership invite, group invite
+
+**Access Code**:
+An admin-issued, revocable and expiring credential that permits a limited number of independent accounts to be created without establishing a mentorship relationship.
+_Avoid_: Mentorship Invitation, registration password, permanent signup code
+
+**Terms Acceptance**:
+A user's acceptance of one identified version of the service contract; it is distinct from consent to process personal data.
+_Avoid_: Privacy consent, Consent Grant
+
+**Consent Grant**:
+A user's separate, explicit and revocable permission for one specified personal-data purpose and recipient scope.
+_Avoid_: Terms Acceptance, blanket consent, Privacy Notice acceptance
 
 ## Habits and records
 
@@ -55,7 +71,7 @@ A Completion recorded for yesterday rather than on its calendar day.
 _Avoid_: Backfill, late submission
 
 **Completion Note**:
-An optional short reflection attached by a student to a Completion and visible to that student and Mentors Above.
+A student's optional short reflection attached to a Completion and visible only to that student and their Direct Mentor under the disclosed consent scope.
 _Avoid_: Report, mentor note, follow-up note
 
 **Excused Day**:
@@ -80,10 +96,6 @@ _Avoid_: Review habit, Follow-up, approval
 An attributable record that a mentor acted on a Needs Attention item outside Çetele, with an optional private note.
 _Avoid_: Daily Review, completion, resolution
 
-**Intervention**:
-An exceptional, attributable action by a Mentor Above inside another Direct Mentor's ordinary responsibility.
-_Avoid_: Delegation, routine assignment
-
 ## Sharing
 
 **Private Habit**:
@@ -97,3 +109,9 @@ _Avoid_: Global habit, live shared document, forced assignment
 **Adoption**:
 Creation of an independent Habit Definition from a Shared Habit for use with the adopting mentor's own students.
 _Avoid_: Subscription, synchronization, assignment
+
+## Future relationships
+
+**Encouragement Connection**:
+A future, mutual and revocable peer relationship for deliberately scoped encouragement, distinct from mentorship and absent until both users separately opt in.
+_Avoid_: Peer mentorship, automatic accountability partner, follower

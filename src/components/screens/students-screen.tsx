@@ -33,7 +33,6 @@ export function StudentsScreen() {
   const uiSearch = useUiSearch();
   const [query, setQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteName, setInviteName] = useState("");
   const [inviteResult, setInviteResult] = useState<{ url: string; expiresAt: string } | null>(null);
   const [inviteError, setInviteError] = useState("");
   const [creatingInvite, setCreatingInvite] = useState(false);
@@ -47,19 +46,17 @@ export function StudentsScreen() {
   const reviewDates = recentDates(state.today, 7);
 
   async function createInvitation() {
-    const name = inviteName.trim();
-    if (!name) return;
     setCreatingInvite(true);
     setInviteError("");
     try {
       if (adapter === "local") {
-        dispatch({ type: "invite", name });
+        dispatch({ type: "invite", name: "Talep edilmemiş davet" });
         const url = new URL("/invite/accept", window.location.origin);
         url.hash = `token=${LOCAL_DEMO_TOKEN}`;
         const expiresAt = new Date(new Date(`${state.today}T12:00:00Z`).getTime() + 72 * 60 * 60 * 1000).toISOString();
         setInviteResult({ url: url.toString(), expiresAt });
       } else {
-        setInviteResult(await createManualInvitation({ name }));
+        setInviteResult(await createManualInvitation({}));
       }
     } catch {
       setInviteError("Davet bağlantısı oluşturulamadı. Lütfen tekrar dene.");
@@ -71,7 +68,6 @@ export function StudentsScreen() {
   function closeInvitation() {
     const refreshHostedInvitations = adapter === "supabase" && inviteResult !== null;
     setInviteOpen(false);
-    setInviteName("");
     setInviteResult(null);
     setInviteError("");
     setCopied(false);
@@ -95,6 +91,6 @@ export function StudentsScreen() {
       <label>Davet bağlantısı<input aria-label="Davet bağlantısı" value={inviteResult.url} readOnly /></label>
       <p>Son kullanım: {INVITATION_EXPIRY_FORMATTER.format(new Date(inviteResult.expiresAt))}</p>
       <div className="dialog-actions"><button className="secondary-button" type="button" onClick={() => { void navigator.clipboard?.writeText(inviteResult.url).then(() => setCopied(true)); }}><Copy size={17} /> {copied ? "Kopyalandı" : "Bağlantıyı kopyala"}</button>{adapter === "local" ? <a className="primary-button" href={inviteResult.url}>Yerel demo bağlantısını aç <ExternalLink size={17} /></a> : null}</div>
-    </div> : <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void createInvitation(); }}><label>Ad soyad<input value={inviteName} onChange={(event) => setInviteName(event.target.value)} minLength={2} maxLength={100} required /></label><p className="privacy-note"><ShieldAlert size={18} /> Öğrencinin e-posta adresini burada istemeyiz. Oluşan bağlantıyı güvenli ve özel bir kanaldan sen iletirsin.</p>{inviteError ? <p className="form-error" role="alert">{inviteError}</p> : null}<button className="primary-button" type="submit" disabled={creatingInvite}>{creatingInvite ? "Oluşturuluyor…" : "Güvenli bağlantı oluştur"}</button></form>}</Dialog> : null}
+    </div> : <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void createInvitation(); }}><p className="privacy-note"><ShieldAlert size={18} /> Davet edilen kişinin adını veya e-posta adresini burada istemeyiz. Kişi kullanıcı adını ve özel e-postasını kurulumda kendisi seçer.</p>{inviteError ? <p className="form-error" role="alert">{inviteError}</p> : null}<button className="primary-button" type="submit" disabled={creatingInvite}>{creatingInvite ? "Oluşturuluyor…" : "Tek kullanımlı bağlantı oluştur"}</button></form>}</Dialog> : null}
   </div>;
 }

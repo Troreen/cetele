@@ -46,8 +46,8 @@ describe("loadCeteleState assignment visibility", () => {
       assignment_preferences: [],
     };
     const results: Record<string, QueryResult> = {
-      profiles: { data: [{ id: "subject", display_name: "Ayşe", timezone: "Europe/Stockholm", group_name: null, theme: "dark" }], error: null },
-      mentorship_invitations: { data: [{ id: "invitation", mentor_id: "mentor", invitee_name: "Selin", expires_at: "2026-08-12T12:00:00.000Z" }], error: null },
+      profiles: { data: [{ id: "subject", alias: "Ayşe", timezone: "Europe/Stockholm", group_name: null, theme: "dark" }], error: null },
+      mentorship_invitations: { data: [{ id: "invitation", mentor_id: "mentor", expires_at: "2026-08-12T12:00:00.000Z" }], error: null },
       mentorship_relationships: { data: [], error: null },
       habit_definitions: { data: [], error: null },
       habit_assignments: { data: [

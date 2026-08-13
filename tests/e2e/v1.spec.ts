@@ -4,13 +4,14 @@ async function openFresh(page: Page, path: string) {
   await page.goto(path);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  await page.waitForFunction(() => localStorage.getItem("cetele-v1-state-20260811-demo-tree") !== null);
 }
 
-test("local demo exercises private manual-link handoff without claiming hosted verification", async ({ page }) => {
+test("local mentorship invitation reaches separate consent onboarding without names or query secrets", async ({ page }) => {
   await openFresh(page, "/students");
   await page.getByRole("button", { name: "Öğrenci davet et" }).click();
-  await page.getByLabel("Ad soyad").fill("Selin Yılmaz");
-  await page.getByRole("button", { name: "Güvenli bağlantı oluştur" }).click();
+  await expect(page.getByText(/adını veya e-posta adresini burada istemeyiz/i)).toBeVisible();
+  await page.getByRole("button", { name: "Tek kullanımlı bağlantı oluştur" }).click();
   const invitationUrl = await page.getByLabel("Davet bağlantısı").inputValue();
   expect(invitationUrl).toContain("/invite/accept#token=");
   expect(invitationUrl).not.toContain("?token=");
@@ -18,8 +19,16 @@ test("local demo exercises private manual-link handoff without claiming hosted v
   await expect(page.getByText(/Yerel demo bağlantısıdır/)).toBeVisible();
 
   await page.getByRole("link", { name: "Yerel demo bağlantısını aç" }).click();
-  await expect(page.getByRole("heading", { name: "Davetini kabul et" })).toBeVisible();
-  await page.getByRole("button", { name: "Daveti kabul et" }).click();
+  await expect(page.getByRole("heading", { name: "Mentorluk davetini aç" })).toBeVisible();
+  await page.getByRole("button", { name: /Doğrulama e-postası iste/ }).click();
+  await expect(page.getByRole("heading", { name: "Çetele kimliğini kur" })).toBeVisible();
+  await page.getByLabel("Kullanıcı adı").fill("Gölge");
+  await page.getByLabel("Yeni parola").fill("fixture-password");
+  await page.getByLabel("Parola tekrarı").fill("fixture-password");
+  const choices = page.getByRole("checkbox");
+  await expect(choices).toHaveCount(3);
+  for (let index = 0; index < 3; index += 1) await choices.nth(index).check();
+  await page.getByRole("button", { name: /Hesabı tamamla/ }).click();
   await expect(page).toHaveURL(/today/);
   expect(new URL(page.url()).hash).toBe("");
   await expect(page.getByText("Son 7 gün")).toBeVisible();
@@ -38,6 +47,10 @@ test("student completion survives a reload", async ({ page }) => {
   const incomplete = focusGrid.getByRole("button", { name: /9 Ağustos Pazar: bugün bekliyor/ });
   await incomplete.click();
   await expect(focusGrid.getByRole("button", { name: /9 Ağustos Pazar: tamamlandı/ })).toHaveAttribute("aria-pressed", "true");
+  await page.waitForFunction(() => {
+    const raw = localStorage.getItem("cetele-v1-state-20260811-demo-tree");
+    return raw ? JSON.parse(raw).completions.some((item: { assignmentId: string; date: string }) => item.assignmentId === "mentor-focus" && item.date === "2026-08-09") : false;
+  });
   await page.reload();
   await expect(page.getByLabel("Tefekkür: 7 günlük görünüm").getByRole("button", { name: /9 Ağustos Pazar: tamamlandı/ })).toHaveAttribute("aria-pressed", "true");
 });
@@ -161,7 +174,7 @@ test("light theme persists while the mobile mentor ledger remains within the vie
   const more = page.getByRole("navigation", { name: "Diğer bölümler" });
   await expect(more.getByRole("link", { name: /Dikkat/ })).toBeVisible();
   await expect(more.getByRole("link", { name: "Alışkanlıklar" })).toBeVisible();
-  await expect(more.getByRole("link", { name: "Ağ" })).toBeVisible();
+  await expect(more.getByRole("link", { name: "Doğrudan grup" })).toBeVisible();
   await more.getByRole("link", { name: /Dikkat/ }).click();
   await expect(page).toHaveURL(/attention/);
 });
@@ -218,22 +231,42 @@ test("Today combines weekly and labeled six-month history controlled by General 
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
 });
 
-test("senior intervention is explicit when assigning inside a deeper branch", async ({ page }) => {
+test("habit assignment offers only direct students and no senior intervention", async ({ page }) => {
   await openFresh(page, "/library");
   const reading = page.locator("article", { has: page.getByRole("heading", { name: "Günlük okuma" }) });
   await reading.getByRole("button", { name: "Öğrenciye ata" }).click();
-  await expect(page.getByRole("heading", { name: "İstisnai üst mentor müdahalesi" })).toBeVisible();
-  await expect(page.getByText("Sorumlu mentor: Yunus").first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Okan için istisnai üst mentor müdahalesi olarak ata" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Alışkanlık ata" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Doğrudan öğrenciler" })).toBeVisible();
+  await expect(page.getByText("Okan")).toHaveCount(0);
+  await expect(page.getByText(/üst mentor müdahalesi/i)).toHaveCount(0);
 });
 
-test("nested mentor students keep their hierarchy and use dense evidence rows", async ({ page }) => {
+test("privacy settings expose withdrawal, export, deletion, and legal fixture paths", async ({ page }) => {
+  await openFresh(page, "/settings");
+  await expect(page.getByRole("heading", { name: "Gizlilik ve hesap" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Verilerimin dışa aktarımını iste/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Doğrudan Mentor rızasını geri çek" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Takip rızasını geri çek" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Hesap silme isteği/ })).toBeVisible();
+  await page.getByRole("link", { name: "Gizlilik Bildirimi" }).click();
+  await expect(page.getByText(/NON-PRODUCTION FIXTURE/)).toBeVisible();
+});
+
+test("local Access Code onboarding stays independent and omits mentor consent", async ({ page }) => {
+  const token = "B".repeat(43);
+  await openFresh(page, `/access/claim#token=${token}`);
+  await expect(page.getByRole("heading", { name: "Erişim Kodunu kullan" })).toBeVisible();
+  await page.getByRole("button", { name: /Doğrulama e-postası iste/ }).click();
+  await expect(page.getByRole("checkbox")).toHaveCount(2);
+  await expect(page.getByText(/Doğrudan Mentor Görünürlük Rızası/)).toHaveCount(0);
+});
+
+test("nested students are absent and their direct route is denied", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openFresh(page, "/students/ayse?theme=dark&range=week");
 
-  const responsibility = page.getByRole("region", { name: "Mentor sorumluluğu" });
-  await expect(responsibility.locator(".student-row")).toHaveCount(6);
-  await expect(responsibility.locator(".evidence-strip")).toHaveCount(12);
+  await expect(page.getByRole("region", { name: "Mentor sorumluluğu" })).toHaveCount(0);
+  await expect(page.getByText("Okan")).toHaveCount(0);
   await expect(page.locator(".habit-card .completion-action")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Atamayı düzelt / sonlandır" }).first()).toHaveClass(/secondary-button/);
 
@@ -248,11 +281,7 @@ test("nested mentor students keep their hierarchy and use dense evidence rows", 
   expect(layout.document).toBeLessThanOrEqual(layout.viewport);
   expect(layout.largestWeeklyCell).toBeLessThanOrEqual(24);
 
-  await responsibility.getByRole("link", { name: "Okan ayrıntıları" }).click();
-  await expect(page).toHaveURL(/\/students\/deniz/);
-  const back = page.getByRole("link", { name: "Yunus grubuna dön" });
-  await expect(back).toHaveAttribute("href", "/students/ayse?theme=dark&range=week");
-  await back.click();
-  await expect(page).toHaveURL(/\/students\/ayse\?theme=dark&range=week/);
-  await expect(page.locator(".back-link")).toHaveAttribute("href", "/students?theme=dark&range=week");
+  await page.goto("/students/deniz?theme=dark&range=week");
+  await expect(page.getByRole("heading", { name: "Öğrenci bulunamadı" })).toBeVisible();
+  await expect(page.getByText("Deniz")).toHaveCount(0);
 });

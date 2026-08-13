@@ -17,7 +17,7 @@ const navigation = [
   { href: "/students", label: "Öğrencilerim", icon: navIcons.students },
   { href: "/attention", label: "Dikkat", icon: navIcons.attention },
   { href: "/library", label: "Alışkanlıklar", icon: navIcons.library },
-  { href: "/network", label: "Ağ", icon: navIcons.network },
+  { href: "/network", label: "Doğrudan grup", icon: navIcons.network },
   { href: "/settings", label: "Ayarlar", icon: navIcons.settings },
 ] as const;
 const THEME_PREFERENCE_EVENT = "cetele:theme-preference-saved";

@@ -7,24 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase/server";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const manualInvitationToken = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
-const manualInvitationClaim = z.object({
-  token: manualInvitationToken,
-  email: z.email(),
-  password: z.string().min(8).max(72),
-  passwordConfirmation: z.string().min(8).max(72),
-}).refine(({ password, passwordConfirmation }) => password === passwordConfirmation, {
-  message: "Parolalar aynı olmalı.",
-  path: ["passwordConfirmation"],
-});
-
 const INVITATION_LIFETIME_MS = 72 * 60 * 60 * 1000;
-const INVITATION_FAILURE = "Davet bağlantısı geçersiz, kullanılmış veya süresi dolmuş.";
-
-type ManualInvitationClaimResult =
-  | { outcome: "signed-in" }
-  | { outcome: "sign-in-required" }
-  | { outcome: "cleanup-required" };
 
 function applicationOrigin() {
   const origin = process.env.CETELE_APP_ORIGIN;
@@ -41,6 +24,13 @@ function applicationOrigin() {
 
 function invitationTokenHash(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+async function requireActiveUser() {
+  const context = await requireUser();
+  const { data, error } = await context.supabase.from("profiles").select("id,account_state").eq("id", context.user.id).maybeSingle();
+  if (error || data?.account_state !== "active") throw new Error("Bu işlem için etkin bir hesap gerekiyor.");
+  return context;
 }
 
 export async function signOut() {
@@ -81,15 +71,14 @@ export async function recordFollowUp(input: unknown) {
 }
 
 export async function createManualInvitation(input: unknown) {
-  const { name } = z.object({ name: z.string().trim().min(2).max(100) }).parse(input);
-  const { user } = await requireUser();
+  z.object({}).parse(input);
+  const { user } = await requireActiveUser();
   const admin = createSupabaseAdminClient();
   const appOrigin = applicationOrigin();
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + INVITATION_LIFETIME_MS).toISOString();
   const { error } = await admin.from("mentorship_invitations").insert({
     mentor_id: user.id,
-    invitee_name: name,
     token_hash: invitationTokenHash(token),
     expires_at: expiresAt,
   });
@@ -102,15 +91,15 @@ export async function createManualInvitation(input: unknown) {
 
 export async function revokeManualInvitation(input: unknown) {
   const { invitationId } = z.object({ invitationId: z.string().uuid() }).parse(input);
-  const { user } = await requireUser();
+  const { user } = await requireActiveUser();
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("mentorship_invitations")
-    .update({ cancelled_at: new Date().toISOString() })
+    .update({ revoked_at: new Date().toISOString() })
     .eq("id", invitationId)
     .eq("mentor_id", user.id)
     .is("accepted_at", null)
-    .is("cancelled_at", null)
+    .is("revoked_at", null)
     .select("id")
     .maybeSingle();
   if (error || !data) throw new Error("Bekleyen davet iptal edilemedi. Lütfen tekrar dene.");
@@ -120,53 +109,13 @@ export async function signInWithPassword(input: unknown) {
   const { email, password } = z.object({ email: z.email(), password: z.string().min(8) }).parse(input);
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
-}
-
-export async function claimManualInvitation(input: unknown): Promise<ManualInvitationClaimResult> {
-  const parsed = manualInvitationClaim.safeParse(input);
-  if (!parsed.success) throw new Error(INVITATION_FAILURE);
-
-  const tokenHash = invitationTokenHash(parsed.data.token);
-  const email = parsed.data.email.trim().toLowerCase();
-  const admin = createSupabaseAdminClient();
-  const { data: invitation, error: lookupError } = await admin
-    .from("mentorship_invitations")
-    .select("invitee_name,expires_at,accepted_at,cancelled_at,invited_user_id")
-    .eq("token_hash", tokenHash)
-    .maybeSingle();
-  if (lookupError || !invitation || invitation.accepted_at || invitation.cancelled_at || invitation.invited_user_id || new Date(invitation.expires_at).getTime() <= Date.now()) {
-    throw new Error(INVITATION_FAILURE);
-  }
-
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password: parsed.data.password,
-    email_confirm: true,
-    user_metadata: { name: invitation.invitee_name },
-  });
-  if (createError || !created.user) throw new Error(INVITATION_FAILURE);
-
-  const { error: claimError } = await admin.rpc("claim_mentorship_invitation", {
-    p_token_hash: tokenHash,
-    p_user_id: created.user.id,
-  });
-  if (claimError) {
-    let cleanupFailed = false;
-    try {
-      const { error: cleanupError } = await admin.auth.admin.deleteUser(created.user.id);
-      cleanupFailed = Boolean(cleanupError);
-    } catch {
-      cleanupFailed = true;
-    }
-    if (cleanupFailed) return { outcome: "cleanup-required" } as const;
-    throw new Error(INVITATION_FAILURE);
-  }
-
-  const supabase = await createSupabaseServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: parsed.data.password });
-  if (signInError) return { outcome: "sign-in-required" } as const;
-  return { outcome: "signed-in" } as const;
+  if (error) throw new Error("E-posta veya parola doğrulanamadı.");
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { destination: "/sign-in" } as const;
+  const { data: profile } = await supabase.from("profiles").select("onboarding_completed_at,account_state").eq("id", auth.user.id).maybeSingle();
+  if (!profile?.onboarding_completed_at) return { destination: "/account/setup" } as const;
+  if (profile.account_state === "closure_requested") return { destination: "/account/recover-deletion" } as const;
+  return { destination: profile.account_state === "active" ? "/today" : "/sign-in" } as const;
 }
 
 const definitionInput = z.object({
@@ -180,12 +129,12 @@ async function requireHabitAuthorContext() {
   const { supabase, user } = await requireUser();
   const [responsibilityResult, profileResult] = await Promise.all([
     supabase.from("mentorship_relationships").select("student_id").eq("mentor_id", user.id).eq("status", "active").limit(1).maybeSingle(),
-    supabase.from("profiles").select("display_name").eq("id", user.id).single(),
+    supabase.from("profiles").select("alias").eq("id", user.id).single(),
   ]);
   if (responsibilityResult.error) throw new Error(responsibilityResult.error.message);
   if (!responsibilityResult.data) throw new Error("Alışkanlık yalnızca etkin doğrudan öğrencisi olan mentorlar tarafından yönetilebilir.");
   if (profileResult.error || !profileResult.data) throw new Error(profileResult.error?.message ?? "Mentor profili bulunamadı.");
-  return { supabase, creatorName: profileResult.data.display_name };
+  return { supabase, creatorName: profileResult.data.alias };
 }
 
 export async function createHabitDefinition(input: unknown) {
