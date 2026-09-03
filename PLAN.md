@@ -2,9 +2,9 @@
 
 This file is the authoritative delivery sequence. Product behavior remains authoritative in [`PRODUCT.md`](PRODUCT.md) and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md); GitHub issues hold execution discussion.
 
-## Current truth — 2026-08-12
+## Current truth — 2026-09-03
 
-- **Privacy-preserving accounts and direct-only accountability are implemented through Milestone 5.** Production activation, real accounts, approved legal copy, SMTP, leaked-password protection, rate limits, and CAPTCHA remain blocked Milestone 6 work.
+- **Privacy-preserving accounts and direct-only accountability are implemented through Milestone 5 and deployed to production from `37c8245`.** The production Supabase project is healthy and has migrations through `202608120005_withdraw_all_active_grants`; Vercel has the matching production-project guard. Real-user activation remains blocked: the project contains five pre-existing Auth users that must be explicitly audited or removed, and approved legal copy, SMTP, leaked-password protection, rate limits, and CAPTCHA remain Milestone 6 work.
 
 - **PR #5 is cleared for merge.** Manual findings MT-001 through MT-015 are fixed with focused regression coverage; Tarik explicitly approved the merge on 2026-08-11. The final local verification and publishing evidence are recorded with the review-hardening commit.
 - **The hosted Supabase gate passed.** Migrations `001`, `002`, and additive upgrade migration `003` were applied to a disposable project. The redaction-safe executable matrix passed 134/134 and the complementary manual browser/database matrix passed across five isolated identities.
@@ -54,11 +54,11 @@ Track every manual finding in [`docs/verification/2026-08-10-pr5-manual-triage.m
 
 ### 5. Implement private accounts, consent, and invitations
 
-**Status:** implementation complete; production activation and legal approval remain blocked
+**Status:** implementation complete and code deployed; real-user activation and legal approval remain blocked
 
 Follow the complete [privacy-preserving accounts, consent, and invitations plan](docs/plans/2026-08-12-private-accounts-consent-and-invitations.md). This milestone includes Access Codes, Mentorship Invitations, verified private email, Alias profiles, versioned Terms Acceptance and Consent Grants, withdrawal/export/deletion paths, direct-only authorization, removal of higher-mentor visibility, and disposable hosted verification.
 
-**Evidence:** migrations `202608120001`–`005` were applied only to disposable project `doyzpafuqqoydnkxmbxg`; the final direct-only hosted authorization/session matrix passed 48/48. `npm.cmd run verify` passed 118/118 tests plus the production build, and `npm.cmd run test:e2e` passed 15/15 journeys. Full evidence is in [`docs/verification/2026-08-12-private-accounts-consent-invitations.md`](docs/verification/2026-08-12-private-accounts-consent-invitations.md). The bounded Auth Invite User probe used a reserved synthetic address and was rejected by Supabase before user creation, so delivery remains explicitly unverified.
+**Evidence:** the final direct-only hosted authorization/session matrix passed 48/48. On 2026-09-03, `npm.cmd run test` passed 118/118, `npm.cmd run build` passed, and `npm.cmd run test:e2e` passed 15/15; `37c8245` was fast-forwarded to `main` and Vercel reported the resulting production deployment ready. Production smoke requests returned HTTP 200 for `/sign-in`, `/access/claim`, and `/legal/privacy`. The production Supabase dashboard identifies `doyzpafuqqoydnkxmbxg` as its production branch and shows migration `202608120005_withdraw_all_active_grants`, but the Auth inventory contains five existing users. Full pre-activation evidence is in [`docs/verification/2026-08-12-private-accounts-consent-invitations.md`](docs/verification/2026-08-12-private-accounts-consent-invitations.md). The bounded Auth Invite User probe used a reserved synthetic address and was rejected by Supabase before user creation, so delivery remains explicitly unverified.
 
 **Stopping condition:** Milestones 0–5 in the dedicated plan are implemented and reviewed. Real-user account creation, production mutation, approved legal copy, controller details, Article 6/9 decisions, and signup activation remain separately authorized Milestone 6 operations.
 
