@@ -1,15 +1,15 @@
-# Çetele
+# Mülahaza
 
-Çetele is the domain of personal daily habit records within a hierarchical mentorship network. This glossary fixes the language used in product documents, issues, tests, and code.
+Mülahaza is the domain of personal daily habit records within a hierarchical mentorship network. This glossary fixes the language used in product documents, issues, tests, and code.
 
 ## People and mentorship
 
 **User**:
-A person with one Çetele identity who may simultaneously be mentored and mentor others.
+A person with one Mülahaza identity who may simultaneously be mentored and mentor others.
 _Avoid_: Account type, student account, mentor account
 
 **Alias**:
-A user-chosen, non-unique display identity used inside Çetele without asserting or collecting a legal name.
+A user-chosen, non-unique display identity used inside Mülahaza without asserting or collecting a legal name.
 _Avoid_: Legal name, full name, username
 
 **Direct Mentor**:
@@ -93,7 +93,7 @@ A mentor's explicit record that they scanned their direct students for the day; 
 _Avoid_: Review habit, Follow-up, approval
 
 **Follow-up**:
-An attributable record that a mentor acted on a Needs Attention item outside Çetele, with an optional private note.
+An attributable record that a mentor acted on a Needs Attention item outside Mülahaza, with an optional private note.
 _Avoid_: Daily Review, completion, resolution
 
 ## Sharing

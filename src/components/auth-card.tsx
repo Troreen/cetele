@@ -41,11 +41,11 @@ export function AuthCard({ mode }: { mode: AuthMode }) {
       .then((claim) => setMentorAlias(claim.mentorAlias ?? ""))
       .catch(() => setError("Bağlantı doğrulanamadı. Yeni bir bağlantı iste."));
   }, [hosted, isClaim, mode, token]);
-  const title = mode === "sign-in" ? "Çetelene dön" : mode === "access-code" ? "Erişim Kodunu kullan" : "Mentorluk davetini aç";
+  const title = mode === "sign-in" ? "Mülahaza'ya dön" : mode === "access-code" ? "Erişim Kodunu kullan" : "Mentorluk davetini aç";
   const description = mode === "sign-in"
     ? "Özel e-posta adresin ve parolanla giriş yap."
     : mode === "access-code"
-      ? "Bu kod bağımsız bir Çetele hesabı kurar; mentorluk ilişkisi oluşturmaz."
+      ? "Bu kod bağımsız bir Mülahaza hesabı kurar; mentorluk ilişkisi oluşturmaz."
       : `Geçerli bağlantı, kurulum tamamlandığında ${mentorAlias || "bağlantıda belirtilen kişi"} ile bir Doğrudan Mentor ilişkisi kurar.`;
 
   async function submit() {
@@ -79,7 +79,7 @@ export function AuthCard({ mode }: { mode: AuthMode }) {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <Link href={mode === "sign-in" ? "/sign-in" : "#"} className="brand"><span className="brand-mark"><Check size={15} /></span>Çetele</Link>
+    <Link href={mode === "sign-in" ? "/sign-in" : "#"} className="brand"><span className="brand-mark"><Check size={15} /></span>Mülahaza</Link>
     <div className="auth-copy"><h1>{recovery ? "Parolanı yenile" : title}</h1><p>{recovery ? "Hesap olup olmadığını açığa çıkarmadan yenileme bağlantısı göndeririz." : description}</p></div>
     {status ? <div className="form-stack"><p className="privacy-note" role="status"><Mail size={17} /> {status}</p><Link className="secondary-button full" href="/sign-in">Giriş ekranına dön</Link></div> : <form className="form-stack" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
       <label>Özel e-posta<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label>
@@ -88,6 +88,6 @@ export function AuthCard({ mode }: { mode: AuthMode }) {
       <button className="primary-button full" type="submit" disabled={isClaim && (!token || fragmentState === FRAGMENT_UNREAD)}>{recovery ? "Yenileme bağlantısı iste" : mode === "sign-in" ? "Giriş yap" : "Doğrulama e-postası iste"} <ArrowRight size={18} /></button>
       {mode === "sign-in" ? <button className="text-button" type="button" onClick={() => { setRecovery(!recovery); setError(""); setStatus(""); }}><KeyRound size={16} /> {recovery ? "Girişe dön" : "Parolamı unuttum"}</button> : null}
     </form>}
-    <p className="auth-footnote"><Check size={15} /> {isClaim ? "Çetele yasal ad istemez; e-posta yalnızca Supabase Auth içinde kalır." : hosted ? "Güvenli Supabase oturumu" : "Yerel doğrulama modu"}</p>
+    <p className="auth-footnote"><Check size={15} /> {isClaim ? "Mülahaza yasal ad istemez; e-posta yalnızca Supabase Auth içinde kalır." : hosted ? "Güvenli Supabase oturumu" : "Yerel doğrulama modu"}</p>
   </section></main>;
 }

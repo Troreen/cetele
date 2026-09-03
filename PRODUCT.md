@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Delegated baseline: strict TypeScript with React and Next.js App Router; PostgreSQL and Supabase for persistence and authentication where appropriate; Tailwind CSS; Vitest and React Testing Library for fast behavioral tests; Playwright for critical end-to-end flows. Deviate only when discovery identifies a concrete Çetele-specific advantage, and record any materially different infrastructure decision.
+Delegated baseline: strict TypeScript with React and Next.js App Router; PostgreSQL and Supabase for persistence and authentication where appropriate; Tailwind CSS; Vitest and React Testing Library for fast behavioral tests; Playwright for critical end-to-end flows. Deviate only when discovery identifies a concrete Mülahaza-specific advantage, and record any materially different infrastructure decision.
 
 ## Users
 
@@ -18,13 +18,13 @@ The same account may also mentor any number of direct students. In that role, th
 
 ## Product Purpose
 
-Çetele is a daily habit accountability system for spiritual mentorship relationships. It makes personal consistency visible over time through one history grid per habit, while giving a Direct Mentor the minimum visibility needed to notice, review, and follow up responsibly.
+Mülahaza is a daily habit accountability system for spiritual mentorship relationships. It makes personal consistency visible over time through one history grid per habit, while giving a Direct Mentor the minimum visibility needed to notice, review, and follow up responsibly.
 
 Success means a student records daily consistency in seconds and a Direct Mentor understands which Direct Students need attention without opening every profile.
 
 ## Positioning
 
-Çetele combines a personal-first daily habit record with accountability inside one Direct Mentor relationship: the student experiences self-accounting while narrowly bounded visibility supports a trusted mentor without spreading personal records through the hierarchy.
+Mülahaza combines a personal-first daily habit record with accountability inside one Direct Mentor relationship: the student experiences self-accounting while narrowly bounded visibility supports a trusted mentor without spreading personal records through the hierarchy.
 
 ## Operating Context
 
@@ -32,7 +32,7 @@ Success means a student records daily consistency in seconds and a Direct Mentor
 - All end-user UI and assistive labels use natural Turkish.
 - A user may be a student and mentor at the same time; groups and branches derive from the mentorship tree rather than separate memberships.
 - Account creation is invite-only. An admin may distribute a revocable, expiring, limited-use Access Code for independent account creation; a mentor may distribute a revocable, expiring, single-use Mentorship Invitation that establishes one Direct Mentor relationship.
-- Çetele does not request legal names. The invitee chooses a non-unique Alias, private verified email, and password; the email remains inside Supabase Auth and mentors or admins never create or share user passwords.
+- Mülahaza does not request legal names. The invitee chooses a non-unique Alias, private verified email, and password; the email remains inside Supabase Auth and mentors or admins never create or share user passwords.
 - Account setup separates Terms Acceptance, the Privacy Notice, Core Tracking Consent, and Direct Mentor Visibility Consent. Optional or future processing is never bundled into the core choices.
 - Direct mentors review their students daily and follow up outside the application when attention is needed.
 - One vetted spiritual quotation may quietly frame the daily view. Content and attribution are supplied and verified separately.
@@ -57,11 +57,11 @@ Success means a student records daily consistency in seconds and a Direct Mentor
 
 ## Brand Commitments
 
-The product name is Çetele. Its voice is concise, human, calm, mature, reflective, modest, quietly disciplined, culturally Turkish, and openly spiritual without becoming decorative or preachy. The everyday student experience must feel like “my Çetele,” not a report prepared for surveillance.
+The product name is Mülahaza. Its voice is concise, human, calm, mature, reflective, modest, quietly disciplined, culturally Turkish, and openly spiritual without becoming decorative or preachy. The everyday student experience must feel like “my Mülahaza,” not a report prepared for surveillance.
 
 Avoid nationalist or state imagery, flag-derived decoration, mosque silhouettes, generic religious ornament, enterprise-dashboard language, generic AI SaaS styling, and game-like reward mechanics. HabitKit's visual identity is the direct benchmark for the first daily-view surface: near-black canvas, charcoal habit rows, bright per-habit accents, compact icon/name rows, and dense plain contribution tiles.
 
-The daily view should closely reproduce HabitKit's dashboard composition and visual density rather than merely taking loose inspiration from it. In compact Week mode, each Habit Assignment is one low row containing its icon, truncated name, and seven aligned cells beneath one shared date header; descriptions, streak summaries, information buttons, and a separate Today control are omitted from the row. Today's cell remains the completion surface. Six Months retains the fuller Habit Card, description, information action, Today control, and streak summary. Do not add interior dots to grid cells, oversized circular completion controls, assignment-status copy, legends, daily summaries, or journal-like styling. Çetele retains its own name, original icons and code, mentor-assigned habits, Turkish language, attribution, privacy, accessible names, and non-punitive semantics.
+The daily view should closely reproduce HabitKit's dashboard composition and visual density rather than merely taking loose inspiration from it. In compact Week mode, each Habit Assignment is one low row containing its icon, truncated name, and seven aligned cells beneath one shared date header; descriptions, streak summaries, information buttons, and a separate Today control are omitted from the row. Today's cell remains the completion surface. Six Months retains the fuller Habit Card, description, information action, Today control, and streak summary. Do not add interior dots to grid cells, oversized circular completion controls, assignment-status copy, legends, daily summaries, or journal-like styling. Mülahaza retains its own name, original icons and code, mentor-assigned habits, Turkish language, attribution, privacy, accessible names, and non-punitive semantics.
 
 The compact daily mode shows the rolling seven days ending today for every Habit Assignment. It uses a shared date guide and dense fixed-size history cells rather than stretching seven cells across the card. Both dark and light palettes are first-class and preserve the same HabitKit-close hierarchy. V1 uses the restrained Lucide line-icon family for navigation, habit categories, theme controls, and status actions; accessible names carry meaning and icons never replace text where ambiguity would result.
 

@@ -1,6 +1,6 @@
-# Çetele
+# Mülahaza
 
-Çetele is a Turkish, personal-first daily habit record for spiritual mentorship networks. Students see a calm record of their own mentor-assigned habits; mentors receive carefully bounded, upward-only visibility for review and follow-up.
+Mülahaza is a Turkish, personal-first daily habit record for spiritual mentorship networks. Students see a calm record of their own mentor-assigned habits; mentors receive carefully bounded, upward-only visibility for review and follow-up.
 
 ## Current status
 

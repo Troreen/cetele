@@ -1,10 +1,10 @@
-# Çetele delivery plan
+# Mülahaza delivery plan
 
 This file is the authoritative delivery sequence. Product behavior remains authoritative in [`PRODUCT.md`](PRODUCT.md) and the [V1 product definition](docs/product/Cetele_V1_Product_Definition_v0.1.md); GitHub issues hold execution discussion.
 
 ## Current truth — 2026-09-03
 
-- **Privacy-preserving accounts and direct-only accountability are implemented through Milestone 5 and deployed to production from `37c8245`.** The production Supabase project is healthy and has migrations through `202608120005_withdraw_all_active_grants`; Vercel has the matching production-project guard. Real-user activation remains blocked: the project contains five pre-existing Auth users that must be explicitly audited or removed, and approved legal copy, SMTP, leaked-password protection, rate limits, and CAPTCHA remain Milestone 6 work.
+- **Privacy-preserving accounts and direct-only accountability are implemented through Milestone 5 and deployed to production from `37c8245`.** The production Supabase project is healthy and has migrations through `202608120005_withdraw_all_active_grants`; Vercel has the matching production-project guard. The five disposable Auth users and all public application data were removed on 2026-09-03, retaining schema and migrations. Real-user activation remains blocked by approved legal copy, SMTP, leaked-password protection, rate limits, and CAPTCHA.
 
 - **PR #5 is cleared for merge.** Manual findings MT-001 through MT-015 are fixed with focused regression coverage; Tarik explicitly approved the merge on 2026-08-11. The final local verification and publishing evidence are recorded with the review-hardening commit.
 - **The hosted Supabase gate passed.** Migrations `001`, `002`, and additive upgrade migration `003` were applied to a disposable project. The redaction-safe executable matrix passed 134/134 and the complementary manual browser/database matrix passed across five isolated identities.

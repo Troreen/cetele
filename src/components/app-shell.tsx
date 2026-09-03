@@ -86,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-frame">
       <header className="topbar">
-        <Link href={hrefWithUiState("/today", uiSearch)} className="brand" aria-label="Çetele ana sayfa"><span className="brand-mark" aria-hidden="true">✓</span>Çetele</Link>
+        <Link href={hrefWithUiState("/today", uiSearch)} className="brand" aria-label="Mülahaza ana sayfa"><span className="brand-mark" aria-hidden="true">✓</span>Mülahaza</Link>
         <div className="topbar-actions">
           <button type="button" className="icon-button" aria-label="Bildirimler" aria-haspopup="dialog" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(true)}><Bell size={19} /></button>
           <button type="button" className="profile-button" aria-label={`Hesap menüsü: ${current?.name}`} aria-haspopup="dialog" aria-expanded={accountOpen} onClick={() => setAccountOpen(true)}><span className="avatar small">{current?.initials}</span><span><strong>{current?.name}</strong><small>Öğrenci · Mentor</small></span><ChevronDown size={16} /></button>

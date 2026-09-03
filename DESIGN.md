@@ -1,5 +1,5 @@
 ---
-name: "Çetele"
+name: "Mülahaza"
 description: "A calm, grid-first habit record with equally intentional dark and light themes."
 colors:
   canvas-dark: "#050505"
@@ -140,13 +140,13 @@ components:
     width: "24px"
 ---
 
-# Design System: Çetele
+# Design System: Mülahaza
 
 ## Overview
 
 **Creative North Star: "The Quiet Ledger"**
 
-Çetele is a compact personal record whose visual rhythm comes from evidence, not decoration. Its HabitKit-close identity uses a nearly black or softly cool-white canvas, stacked tonal cards, bright per-habit color, restrained system typography, and dense square history marks. The surface should feel immediate on a phone: open, scan, record, leave.
+Mülahaza is a compact personal record whose visual rhythm comes from evidence, not decoration. Its HabitKit-close identity uses a nearly black or softly cool-white canvas, stacked tonal cards, bright per-habit color, restrained system typography, and dense square history marks. The surface should feel immediate on a phone: open, scan, record, leave.
 
 Dark and light themes are equal expressions of one system. Both preserve the same hierarchy, density, geometry, and semantic roles; only the tonal values change. Habit colors remain the strongest signal in either theme, while empty states remain calm and missed states never become punitive.
 

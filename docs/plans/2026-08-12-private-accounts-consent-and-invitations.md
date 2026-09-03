@@ -4,21 +4,21 @@
 
 **Date:** 2026-08-12
 
-**Owner:** Çetele repository
+**Owner:** Mülahaza repository
 **Production boundary:** Do not create the first real account, apply a production migration, or admit real users until every pre-production gate in this plan is met and Tarik explicitly authorizes the production operation.
 
-This is the authoritative implementation handoff for Çetele account creation, authentication, legal surfaces, consent, invitations, and the removal of transitive mentor visibility. Read it together with [`PRODUCT.md`](../../PRODUCT.md), [`CONTEXT.md`](../../CONTEXT.md), [`DESIGN.md`](../../DESIGN.md), the [privacy research](../research/2026-08-12-privacy-preserving-identity-and-invitations.md), and [`V1_VERIFICATION.md`](../verification/V1_VERIFICATION.md). Where the older V1 product definition or verification fixtures require legal names, pre-identified invitees, ancestor access, branch aggregates, or senior intervention, this plan and the updated root product/domain documents supersede them.
+This is the authoritative implementation handoff for Mülahaza account creation, authentication, legal surfaces, consent, invitations, and the removal of transitive mentor visibility. Read it together with [`PRODUCT.md`](../../PRODUCT.md), [`CONTEXT.md`](../../CONTEXT.md), [`DESIGN.md`](../../DESIGN.md), the [privacy research](../research/2026-08-12-privacy-preserving-identity-and-invitations.md), and [`V1_VERIFICATION.md`](../verification/V1_VERIFICATION.md). Where the older V1 product definition or verification fixtures require legal names, pre-identified invitees, ancestor access, branch aggregates, or senior intervention, this plan and the updated root product/domain documents supersede them.
 
-This plan defines product and engineering behavior. It is not legal advice and must not be presented as a finding that Çetele is GDPR-compliant.
+This plan defines product and engineering behavior. It is not legal advice and must not be presented as a finding that Mülahaza is GDPR-compliant.
 
 ## Settled decisions
 
-1. Çetele never asks for or stores legal names.
+1. Mülahaza never asks for or stores legal names.
 2. Each person has a stable random Auth UUID and a user-chosen, non-unique **Alias**. The Alias is what other authorized users see.
 3. A private verified email remains inside Supabase Auth for sign-in, verification, recovery, and security notices. Application profile, invitation, habit, analytics, and log tables do not copy it.
 4. Supabase manages password hashes. Application tables and logs never contain plaintext passwords, password hashes, recovery tokens, or full bearer invitation secrets.
 5. Account creation is invite-only. Unrestricted public signup is not a supported path.
-6. Çetele distinguishes an **Access Code** from a **Mentorship Invitation**:
+6. Mülahaza distinguishes an **Access Code** from a **Mentorship Invitation**:
    - An Access Code is admin-issued, expiring, revocable, and usable up to a configured cap. It creates an independent account and no mentorship relationship.
    - A Mentorship Invitation is mentor-issued, expiring, revocable, and single-use. It creates one Direct Mentor relationship when onboarding finishes.
 7. The mentor does not pre-enter the invitee's name or email. The invitee chooses their Alias and supplies their private email during onboarding.
@@ -66,8 +66,8 @@ The first production account uses a separately documented, one-time bootstrap Ac
 The implementation session must confirm the current supported Supabase flow against the changelog and official Auth documentation before choosing APIs. The target behavior is fixed even if the exact API sequence changes:
 
 1. The invitee presents a valid Access Code or Mentorship Invitation.
-2. Çetele validates it without consuming a use and displays what accepting it will do. A Mentorship Invitation identifies the inviting mentor by Alias only after the claim secret is valid.
-3. The invitee supplies an email. Çetele gives a generic response that does not reveal whether the email already has an account.
+2. Mülahaza validates it without consuming a use and displays what accepting it will do. A Mentorship Invitation identifies the inviting mentor by Alias only after the claim secret is valid.
+3. The invitee supplies an email. Mülahaza gives a generic response that does not reveal whether the email already has an account.
 4. Supabase verifies control of that email through a production-capable email flow. Configure custom SMTP or another approved delivery mechanism; do not depend on the best-effort default provider for production.
 5. An authenticated but incomplete Auth user is routed only to account setup. No `profiles` row, mentorship relationship, habit access, or general application session becomes active until setup completes.
 6. The invitee chooses an Alias and password, reads the legal surfaces, makes each required affirmative choice, and submits once.
@@ -93,7 +93,7 @@ Use a short stepped flow on mobile and a compact centered panel on desktop:
 
 1. **Invitation:** validate the invitation and explain whether it creates an independent account or a Direct Mentor relationship.
 2. **Private sign-in:** collect and verify email, then set password.
-3. **Your Çetele identity:** choose Alias; state plainly that Çetele does not ask for a legal name and that authorized people see only this Alias.
+3. **Your Mülahaza identity:** choose Alias; state plainly that Mülahaza does not ask for a legal name and that authorized people see only this Alias.
 4. **Privacy and agreement:** show layered plain-language summaries, links to the complete legal documents, and separate unchecked controls.
 5. **Confirmation:** summarize the account, direct mentor if applicable, visibility, and how consent can later be withdrawn.
 

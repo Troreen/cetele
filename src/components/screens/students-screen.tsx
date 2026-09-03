@@ -86,7 +86,7 @@ export function StudentsScreen() {
       })}</div>
     </section><aside className="responsibility-rail"><section><h2>Sorumluluk özeti</h2><dl><div><dt>Doğrudan öğrenci</dt><dd>{students.length}</dd></div><div><dt>Dikkat gereken</dt><dd>{openCount}</dd></div><div><dt>Bekleyen davet</dt><dd>{pendingCount}</dd></div></dl></section><section><h2>İnceleme geçmişi</h2><div className="review-history" aria-label="Son yedi günlük inceleme geçmişi">{reviewDates.map((date) => { const reviewedOnDate = state.reviews.some((item) => item.mentorId === state.currentUserId && item.date === date); return <span key={date} className={reviewedOnDate ? "done" : ""}><span className="sr-only">{REVIEW_DATE_FORMATTER.format(new Date(`${date}T12:00:00Z`))}: {reviewedOnDate ? "incelendi" : "incelenmedi"}</span></span>; })}</div></section></aside></div>
     {inviteOpen ? <Dialog title="Öğrenci davet et" onClose={closeInvitation}>{inviteResult ? <div className="form-stack invitation-result">
-      <p className="privacy-note"><ShieldAlert size={18} /> Bu tek kullanımlı bağlantıyı yalnızca davet ettiğin kişiye, özel bir kanaldan ilet. Pencereyi kapattıktan sonra Çetele bağlantıyı yeniden göstermez.</p>
+      <p className="privacy-note"><ShieldAlert size={18} /> Bu tek kullanımlı bağlantıyı yalnızca davet ettiğin kişiye, özel bir kanaldan ilet. Pencereyi kapattıktan sonra Mülahaza bağlantıyı yeniden göstermez.</p>
       {adapter === "local" ? <p className="privacy-note">Yerel demo bağlantısıdır; sunucuda davet oluşturulduğunu kanıtlamaz.</p> : null}
       <label>Davet bağlantısı<input aria-label="Davet bağlantısı" value={inviteResult.url} readOnly /></label>
       <p>Son kullanım: {INVITATION_EXPIRY_FORMATTER.format(new Date(inviteResult.expiresAt))}</p>
